@@ -1,0 +1,27 @@
+# Core UI & Backend
+streamlit>=1.38.0
+python-dotenv>=1.0.1
+fastapi>=0.115.0
+uvicorn>=0.30.0
+python-multipart>=0.0.9
+
+# RAG & Embeddings
+# NOTE: sentence-transformers is removed (requires PyTorch ~600MB).
+# RAG now uses Gemini Embeddings API when GEMINI_API_KEY is set, otherwise falls back to TF-IDF.
+scikit-learn>=1.5.0
+numpy>=1.26.0
+pypdf>=4.3.0
+python-docx>=1.1.0
+google-genai>=0.2.2
+
+# Vision
+pillow>=10.4.0
+
+# LLM Providers
+anthropic>=0.40.0
+requests>=2.31.0
+
+# Speech (optional — uncomment or run `pip install faster-whisper gtts` to enable)
+# faster-whisper>=1.0.0
+# gtts>=2.5.0
+# pyaudio>=0.2.14

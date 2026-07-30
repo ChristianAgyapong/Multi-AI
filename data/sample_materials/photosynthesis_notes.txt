@@ -1,0 +1,40 @@
+Photosynthesis: Study Notes
+
+Photosynthesis is the process by which green plants, algae, and some
+bacteria convert light energy into chemical energy stored in glucose. It
+takes place mainly in the chloroplasts of plant cells, specifically using
+a green pigment called chlorophyll that absorbs light, primarily in the
+red and blue wavelengths, while reflecting green light (which is why
+plants appear green).
+
+The overall reaction can be summarized as:
+6 CO2 + 6 H2O + light energy -> C6H12O6 + 6 O2
+
+Photosynthesis happens in two main stages:
+
+1. Light-dependent reactions (in the thylakoid membrane): Light energy is
+   absorbed by chlorophyll and used to split water molecules (photolysis),
+   releasing oxygen as a byproduct. This stage produces ATP and NADPH,
+   which are energy-carrying molecules used in the next stage.
+
+2. Light-independent reactions / Calvin Cycle (in the stroma): ATP and
+   NADPH from the first stage are used to convert carbon dioxide into
+   glucose. This stage does not require light directly, but depends on the
+   products of the light-dependent reactions.
+
+Common student mistakes:
+- Confusing photosynthesis with respiration (respiration is the reverse
+  process: it consumes glucose and oxygen, and releases CO2 and water,
+  releasing energy for the cell rather than storing it).
+- Forgetting that oxygen released in photosynthesis comes from splitting
+  water, not from carbon dioxide.
+- Assuming the Calvin Cycle doesn't happen in the dark — it can happen
+  without light, but it depends on ATP/NADPH which are only produced when
+  light is available, so in practice both stages run during daylight in
+  most plants.
+
+Factors affecting the rate of photosynthesis: light intensity, carbon
+dioxide concentration, temperature, and water availability. Rate increases
+with more of the first three (up to a point, after which enzymes involved
+denature or another factor becomes limiting), and drops sharply if the
+plant lacks water.

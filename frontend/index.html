@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multimodal AI Tutor</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Marked.js for Markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div>
+            <h2>🎓 AI Tutor</h2>
+            
+            <!-- Agent Mode Selector -->
+            <div class="card glass">
+                <label>Agent Mode</label>
+                <select id="agentMode">
+                    <option value="tutor">🧑‍🏫 Tutor (Step-by-step)</option>
+                    <option value="socratic_peer">💭 Socratic Peer (Guiding)</option>
+                    <option value="quiz_master">📝 Quiz Master (Testing)</option>
+                    <option value="debugger">🐛 Debugger (Code/Math)</option>
+                </select>
+            </div>
+            
+            <!-- Document Upload (RAG) -->
+            <div class="card glass">
+                <label>📚 Course Material (RAG)</label>
+                <div class="file-upload" id="dropZone">
+                    <span style="font-size: 2rem; margin-bottom: 0.5rem; display: block;">📄</span>
+                    <span style="color: var(--text-muted); font-size: 0.85rem;">
+                        Click or drag PDF/TXT/DOCX to ground answers in your material
+                    </span>
+                    <input type="file" id="docUpload" accept=".pdf,.txt,.docx">
+                </div>
+                <div id="uploadStatus" style="margin-top: 0.75rem; font-size: 0.85rem; display: none;"></div>
+            </div>
+            
+            <!-- Usage Stats -->
+            <div class="sidebar-section card glass">
+                <div class="sidebar-section-header" onclick="toggleSection('statsBody')">
+                    <span>⚙️ Usage Stats</span>
+                    <span id="statsToggle">▾</span>
+                </div>
+                <div class="sidebar-section-body" id="statsBody">
+                    <div class="stat-row"><span>Loading...</span><span></span></div>
+                </div>
+            </div>
+            
+            <!-- Student Profile -->
+            <div class="sidebar-section card glass">
+                <div class="sidebar-section-header" onclick="toggleSection('studentProfileBody')">
+                    <span>👤 Student Profile</span>
+                    <span id="profileToggle">▾</span>
+                </div>
+                <div class="sidebar-section-body" id="studentProfileBody">
+                    Loading...
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div style="margin-top: auto; text-align: center;">
+            <p style="font-size: 0.75rem; color: var(--text-muted);">
+                Powered by FastAPI + Unified LLM
+            </p>
+        </div>
+    </aside>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Tabs -->
+        <div class="tabs-header glass">
+            <button class="tab-btn active" onclick="switchTab('chat')">💬 Chat</button>
+            <button class="tab-btn" onclick="switchTab('quiz')">📝 Quiz</button>
+            <button class="tab-btn" onclick="switchTab('flashcards')">🗂️ Flashcards</button>
+            <button class="tab-btn" onclick="switchTab('debate')">🧠 Debate</button>
+        </div>
+        
+        <!-- Chat Tab -->
+        <div id="tab-chat" class="tab-content active">
+            <div class="chat-container" id="chatHistory"></div>
+            
+            <!-- Image Preview -->
+            <div class="image-preview" id="imagePreviewContainer">
+                <img id="imgPreview" src="" alt="Preview">
+                <span class="remove-img" onclick="removeImage()">✕ Remove</span>
+            </div>
+            
+            <!-- Input Area -->
+            <div class="input-area">
+                <form id="chatForm" class="chat-input-wrapper" autocomplete="off">
+                    <button type="button" class="attach-btn" title="Attach Image">
+                        📷
+                        <input type="file" id="imgUpload" accept="image/png, image/jpeg">
+                    </button>
+                    <button type="button" class="attach-btn" id="micBtn" title="Hold to record voice">
+                        🎤
+                    </button>
+                    <input type="text" id="chatInput" placeholder="Ask a question..." autocomplete="off">
+                    <button type="submit" class="send-btn" id="sendBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Quiz Tab -->
+        <div id="tab-quiz" class="tab-content">
+            <div class="quiz-container">
+                <div class="quiz-header">
+                    <h1>Test Your Knowledge</h1>
+                    <p style="color: var(--text-muted);">
+                        Generate a custom quiz on any topic, grounded in your uploaded materials.
+                    </p>
+                </div>
+                
+                <form id="quizForm" class="quiz-setup">
+                    <div style="flex: 2;">
+                        <input type="text" id="quizTopic" placeholder="e.g., Photosynthesis, Quadratic Equations..." required>
+                    </div>
+                    <div style="flex: 1;">
+                        <input type="number" id="quizCount" min="1" max="10" value="5" title="Number of questions">
+                    </div>
+                    <button type="submit" class="btn" id="generateQuizBtn" style="flex: 1;">Generate</button>
+                </form>
+                
+                <!-- Quiz Loading Indicator -->
+                <div id="quizLoader" class="loader-container" style="display: none;">
+                    <div class="typing-indicator"><span></span><span></span><span></span></div>
+                    <p style="color: var(--text-muted); margin-top: 1rem;">Writing questions...</p>
+                </div>
+                
+                <!-- Quiz Questions Area -->
+                <div id="quizArea"></div>
+                
+                <!-- Check Answers Button -->
+                <div style="text-align: center; margin-top: 2rem; display: none;" id="checkAnswersWrapper">
+                    <button class="btn" onclick="checkAnswers()" style="max-width: 250px;">Check Answers</button>
+                </div>
+                
+                <!-- Quiz Results -->
+                <div class="quiz-results glass card" id="quizResults"></div>
+            </div>
+        </div>
+        
+        <!-- Flashcards Tab -->
+        <div id="tab-flashcards" class="tab-content">
+            <div class="quiz-container">
+                <div class="quiz-header">
+                    <h1>Your Flashcards</h1>
+                    <p style="color: var(--text-muted);">
+                        Review key terms automatically extracted from your tutoring sessions.
+                    </p>
+                </div>
+                
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <button class="btn" id="generateFlashcardsBtn" style="max-width: 300px;">
+                        🪄 Generate from recent chat
+                    </button>
+                </div>
+                
+                <div id="flashcardsLoader" class="loader-container" style="display: none;">
+                    <div class="typing-indicator"><span></span><span></span><span></span></div>
+                    <p style="color: var(--text-muted); margin-top: 1rem;">Extracting key terms...</p>
+                </div>
+                
+                <div id="flashcardsContainer" style="display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center;">
+                    <!-- Flashcards will be rendered here -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Debate Mode Tab -->
+        <div id="tab-debate" class="tab-content">
+            <div class="quiz-container">
+                <div class="quiz-header">
+                    <h1>🧠 Debate Mode</h1>
+                    <p style="color: var(--text-muted);">
+                        Two AI agents face you. A <strong>Fellow Student</strong> states a misconception. 
+                        You correct them. The <strong>Tutor</strong> grades you. 
+                        This is the <em>Feynman Technique</em> — the fastest way to true mastery.
+                    </p>
+                </div>
+                
+                <!-- Topic Setup -->
+                <div id="debateSetup" style="max-width: 600px; margin: 0 auto 2rem;">
+                    <div style="display: flex; gap: 1rem;">
+                        <input type="text" id="debateTopic" placeholder="Enter a topic (e.g. Photosynthesis, Java, Newton's Laws)" style="flex:1;">
+                        <button class="btn" id="startDebateBtn" style="flex-shrink:0;">⚔️ Start Debate</button>
+                    </div>
+                </div>
+                
+                <!-- Debate Loading -->
+                <div id="debateLoader" class="loader-container" style="display: none;">
+                    <div class="typing-indicator"><span></span><span></span><span></span></div>
+                    <p style="color: var(--text-muted); margin-top: 1rem;">The AIs are preparing...</p>
+                </div>
+                
+                <!-- Debate Arena: Split View -->
+                <div id="debateArena" style="display: none;">
+                    <!-- Two AI panels side by side -->
+                    <div class="debate-panels">
+                        <!-- Fellow Student Panel -->
+                        <div class="debate-panel fellow-panel glass">
+                            <div class="debate-panel-header">
+                                <span class="debate-avatar">🎓</span>
+                                <div>
+                                    <strong>Alex</strong> <span style="font-size:0.75rem; color: var(--text-muted);">Fellow Student (may be wrong!)</span>
+                                </div>
+                            </div>
+                            <div id="fellowMessages" class="debate-messages"></div>
+                        </div>
+
+                        <!-- Tutor Grader Panel -->
+                        <div class="debate-panel tutor-panel glass">
+                            <div class="debate-panel-header">
+                                <span class="debate-avatar">👨‍🏫</span>
+                                <div>
+                                    <strong>Prof. Morgan</strong> <span style="font-size:0.75rem; color: var(--text-muted);">Tutor Grader</span>
+                                </div>
+                            </div>
+                            <div id="tutorMessages" class="debate-messages"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Student Input -->
+                    <div class="input-area" style="margin-top: 1.5rem;">
+                        <form id="debateForm" class="chat-input-wrapper" autocomplete="off">
+                            <input type="text" id="debateInput" placeholder="Correct Alex's mistake..." autocomplete="off">
+                            <button type="submit" class="send-btn" id="debateSendBtn">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                                </svg>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- JavaScript Modules (order matters) -->
+    <script src="/static/js/config.js"></script>
+    <script src="/static/js/session.js"></script>
+    <script src="/static/js/quiz.js"></script>
+    <script src="/static/js/flashcards.js"></script>
+    <script src="/static/js/debate.js"></script>
+    <script src="/static/js/chat.js"></script>
+    <script>
+        // ===== Global Utilities =====
+        
+        /** Tab switching */
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`.tab-btn[onclick*="${tabId}"]`).classList.add('active');
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+        }
+        
+        /** Toggle collapsible sidebar sections */
+        function toggleSection(bodyId) {
+            const body = document.getElementById(bodyId);
+            if (!body) return;
+            const isHidden = body.style.display === 'none';
+            body.style.display = isHidden ? 'block' : 'none';
+            const toggle = bodyId === 'statsBody' 
+                ? document.getElementById('statsToggle')
+                : document.getElementById('profileToggle');
+            if (toggle) toggle.textContent = isHidden ? '▾' : '▸';
+        }
+        
+        /** Handle document upload for RAG */
+        document.getElementById('docUpload')?.addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const statusEl = document.getElementById('uploadStatus');
+            statusEl.style.display = 'block';
+            statusEl.style.color = 'var(--text-muted)';
+            statusEl.innerText = `Indexing ${file.name}...`;
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const res = await apiFetch('/materials', {
+                    method: 'POST',
+                    body: formData,
+                });
+                const data = await res.json();
+                statusEl.style.color = 'var(--success)';
+                statusEl.innerText = `✓ Added ${file.name} (${data.chunks_added} chunks)`;
+                showToast('Material indexed successfully!', 'success');
+            } catch (err) {
+                statusEl.style.color = 'var(--danger)';
+                statusEl.innerText = `Error: ${err.message}`;
+                showToast('Upload failed: ' + err.message, 'error');
+            }
+        });
+        
+        // Initialize modules on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            initQuiz();
+            initChat();
+            if (typeof initFlashcards === 'function') initFlashcards();
+            if (typeof initDebate === 'function') initDebate();
+        });
+    </script>
+</body>
+</html>
+

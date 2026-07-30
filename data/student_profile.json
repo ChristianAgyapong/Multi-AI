@@ -1,0 +1,135 @@
+{
+  "interaction_count": 82,
+  "flashcards": [
+    {
+      "front": "Photosynthesis",
+      "back": "The process by which plants, algae, and some bacteria convert light energy from the sun into chemical energy in the form of organic compounds, such as glucose."
+    },
+    {
+      "front": "Quadratic equations",
+      "back": "A polynomial equation of degree two, which means the highest power of the variable is two, often expressed in the form ax^2 + bx + c = 0."
+    },
+    {
+      "front": "Mitochondria",
+      "back": "The organelles found in the cells of most eukaryotes, responsible for generating most of the cell's supply of adenosine triphosphate (ATP), used as a source of chemical energy."
+    },
+    {
+      "front": "French Revolution",
+      "back": "A period of radical social and political upheaval in France that lasted from 1789 to 1799, marking the end of the absolute monarchy and the rise of modern democracy."
+    },
+    {
+      "front": "Multimodal AI",
+      "back": "An artificial intelligence system capable of processing and understanding multiple types of input, such as text and images."
+    }
+  ],
+  "topic_stats": {
+    "explain": {
+      "questions_asked": 4,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "photosynthesis": {
+      "questions_asked": 4,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "general": {
+      "questions_asked": 56,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "help": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "what": {
+      "questions_asked": 6,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "describe": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "analysis": {
+      "questions_asked": 3,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "analyse": {
+      "questions_asked": 6,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "bio-fing": {
+      "questions_asked": 0,
+      "quiz_attempts": 2,
+      "quiz_correct": 1,
+      "quiz_total": 10
+    },
+    "french": {
+      "questions_asked": 2,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "french revolution": {
+      "questions_asked": 2,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "based": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "tell": {
+      "questions_asked": 2,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "this discuss topic then ": {
+      "questions_asked": 0,
+      "quiz_attempts": 18,
+      "quiz_correct": 11,
+      "quiz_total": 270
+    },
+    "artificial intelligence": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "machine learning": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "okay": {
+      "questions_asked": 2,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "deep": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    }
+  }
+}
