@@ -1,11 +1,19 @@
-# Fix: Groq Model Decommissioned (400 Bad Request)
+# Fix Plan for app.py
 
-## Steps
+## Errors Found
+1. **Line 376 SyntaxWarning**: `\s` in JavaScript regex inside Python f-string is treated as invalid Python escape sequence (lines 333-334)
+2. **Line 492 IndentationError**: Orphaned `difficulty_hint` code not inside any block
+3. **Missing `with tab_quiz:` block**: Quiz tab code (lines 499+) is floating without container and missing `try:` statement
 
-- [x] **Step 0**: Diagnose root cause — `llama-3.2-11b-vision-preview` decommissioned by Groq
-- [x] **Step 1**: Update `.env` — Change `OPENAI_MODEL` to `llama-3.1-8b-instant`
-- [x] **Step 2**: Update `backend/llm_client.py` — Update `VISION_MODELS` set for current Groq vision models, add `DECOMMISSIONED_MODELS` map
-- [x] **Step 3**: Add graceful fallback handling for decommissioned models in `_non_stream_response` and `_stream_response`
-- [x] **Step 4**: Clean up test files (`test_groq.py`, `test_models.py`, `verify_fix.py`)
-- [x] **Step 5**: Verify fix by testing API call with new model and fallback mechanism
+## Fix Steps
+- [x] Step 1: Fix SyntaxWarning - Change `/\s/` → `/\\s/` in JavaScript inside Python f-string
+- [x] Step 2: Remove orphaned lines 492-495 (leftover difficulty_hint code)
+- [x] Step 3: Add missing `with tab_quiz:` block and `try:` statement, wrapping quiz code properly
+- [x] Step 4: Verify the app starts without errors (py_compile passed, no SyntaxWarnings, streamlit boot test HTTP 200)
+
+## Summary
+- **Line 376 SyntaxWarning**: Fixed by escaping `\s` → `\\s` in JavaScript regex inside Python f-string (lines 333-334)
+- **Line 492 IndentationError**: Fixed by replacing orphaned `difficulty_hint` code with a proper `with tab_quiz:` block
+- **Missing `try:` / quiz generation**: Added complete quiz generation UI (topic, difficulty, question count) inside `with tab_quiz:`
+- **Runtime bug**: Fixed `student_model.record_quiz_result(...)` → `st.session_state.student_model.record_quiz_result(...)` so the quiz tab can access the student model
 

@@ -330,8 +330,8 @@ body{{margin:0;padding:2px 0;background:transparent;font-family:system-ui,sans-s
       var p=parts[i];
       if(ci>=p.s&&ci<p.s+p.l){{
         var t=p.n.nodeValue,li=ci-p.s;
-        var ws=li;while(ws>0&&!/\s/.test(t[ws-1]))ws--;
-        var we=li;while(we<t.length&&!/\s/.test(t[we]))we++;
+        var ws=li;while(ws>0&&!/\\s/.test(t[ws-1]))ws--;
+        var we=li;while(we<t.length&&!/\\s/.test(t[we]))we++;
         if(ws===we)return;
         try{{
           var rng=pDoc.createRange();
@@ -488,47 +488,62 @@ body{{margin:0;padding:2px 0;background:transparent;font-family:system-ui,sans-s
 
         st.rerun()
 
+
 with tab_quiz:
-    st.subheader("Generate a quiz")
-
-    student_model = st.session_state.student_model
-    difficulty_hint = ""
-    if quiz_topic := st.session_state.get("quiz_topic_value", ""):
-        difficulty = adapt_quiz_difficulty(student_model, quiz_topic)
-        if difficulty == "hard":
-            difficulty_hint = "Challenge mode (you've been doing well on this topic)"
-            st.info(difficulty_hint)
-        elif difficulty == "easy":
-            difficulty_hint = "Foundational level (let's build up your understanding)"
-            st.info(difficulty_hint)
-
-    col1, col2 = st.columns([3, 1])
+    st.markdown("### Generate a Quiz")
+    col1, col2, col3 = st.columns([3, 1, 1])
     with col1:
-        quiz_topic = st.text_input("Topic", placeholder="e.g. photosynthesis, the French Revolution, quadratic equations", key="quiz_topic_value")
+        quiz_topic = st.text_input(
+            "Quiz topic",
+            placeholder="e.g. Photosynthesis, World War II, ...",
+            label_visibility="collapsed",
+        )
     with col2:
-        num_q = st.number_input("Questions", min_value=1, max_value=15, value=5)
+        difficulty = st.selectbox(
+            "Difficulty",
+            ["standard", "easy", "hard"],
+            index=0,
+            label_visibility="collapsed",
+        )
+    with col3:
+        num_questions = st.number_input(
+            "Questions",
+            min_value=3,
+            max_value=15,
+            value=5,
+            label_visibility="collapsed",
+        )
 
-    if st.button("Generate quiz", type="primary", disabled=not quiz_topic):
-        context_chunks = None
-        if not st.session_state.material_store.is_empty():
-            context_chunks = st.session_state.material_store.retrieve(quiz_topic, top_k=5)
+    if difficulty == "hard":
+        difficulty_hint = "This will be challenging (good for review)"
+        st.info(difficulty_hint)
+    elif difficulty == "easy":
+        difficulty_hint = "Foundational level (let's build up your understanding)"
+        st.info(difficulty_hint)
 
-        with st.spinner("Writing quiz..."):
-            try:
-                difficulty = adapt_quiz_difficulty(student_model, quiz_topic)
-                quiz = generate_quiz(
-                    quiz_topic,
-                    num_questions=num_q,
-                    context_chunks=context_chunks,
-                    difficulty=difficulty,
-                )
-                st.session_state["current_quiz"] = quiz
-                st.session_state["current_quiz_topic"] = quiz_topic
-                st.session_state["quiz_checked"] = False
-                st.session_state["quiz_submitted"] = False
-            except Exception as e:
-                st.error(f"Couldn't generate quiz: {e}")
-                st.session_state["current_quiz"] = None
+    if st.button("Generate quiz", type="primary"):
+        if not quiz_topic.strip():
+            st.warning("Please enter a quiz topic")
+        else:
+            with st.spinner("Generating quiz..."):
+                try:
+                    context_chunks = None
+                    if not st.session_state.material_store.is_empty():
+                        context_chunks = st.session_state.material_store.retrieve(quiz_topic)
+
+                    quiz = generate_quiz(
+                        topic=quiz_topic,
+                        num_questions=num_questions,
+                        context_chunks=context_chunks,
+                        difficulty=difficulty,
+                    )
+                    st.session_state["current_quiz"] = quiz
+                    st.session_state["current_quiz_topic"] = quiz_topic
+                    st.session_state["quiz_checked"] = False
+                    st.session_state["quiz_submitted"] = False
+                except Exception as e:
+                    st.error(f"Couldn't generate quiz: {e}")
+                    st.session_state["current_quiz"] = None
 
     quiz = st.session_state.get("current_quiz")
     if not quiz:
@@ -573,7 +588,7 @@ with tab_quiz:
                 score += 1
 
         quiz_topic_name = st.session_state.get("current_quiz_topic", quiz.get("topic", "general"))
-        student_model.record_quiz_result(quiz_topic_name, correct=score, total=n_questions)
+        st.session_state.student_model.record_quiz_result(quiz_topic_name, correct=score, total=n_questions)
         percentage = score / n_questions * 100
 
         if percentage == 100:

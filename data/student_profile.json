@@ -1,5 +1,5 @@
 {
-  "interaction_count": 82,
+  "interaction_count": 97,
   "flashcards": [
     {
       "front": "Photosynthesis",
@@ -24,7 +24,7 @@
   ],
   "topic_stats": {
     "explain": {
-      "questions_asked": 4,
+      "questions_asked": 5,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -36,7 +36,7 @@
       "quiz_total": 0
     },
     "general": {
-      "questions_asked": 56,
+      "questions_asked": 63,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -48,7 +48,7 @@
       "quiz_total": 0
     },
     "what": {
-      "questions_asked": 6,
+      "questions_asked": 8,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -66,7 +66,7 @@
       "quiz_total": 0
     },
     "analyse": {
-      "questions_asked": 6,
+      "questions_asked": 7,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -96,7 +96,7 @@
       "quiz_total": 0
     },
     "tell": {
-      "questions_asked": 2,
+      "questions_asked": 3,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -126,6 +126,114 @@
       "quiz_total": 0
     },
     "deep": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "teach": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "this doc": {
+      "questions_asked": 0,
+      "quiz_attempts": 2,
+      "quiz_correct": 10,
+      "quiz_total": 10
+    },
+    "hard one on this": {
+      "questions_asked": 0,
+      "quiz_attempts": 7,
+      "quiz_correct": 27,
+      "quiz_total": 35
+    },
+    "this": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "assignment": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "create": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "ensure": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "every": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "given": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "learn": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "linux": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "provide": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "provide screenshot": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "question": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "unix": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "write": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "there": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "usage": {
       "questions_asked": 1,
       "quiz_attempts": 0,
       "quiz_correct": 0,

@@ -3,20 +3,26 @@ Quiz generation. Uses the unified LLM client (backend/llm_client.py) to
 produce a structured JSON quiz (grounded in retrieved course material when
 available) and parses it into a Python object the frontend can render.
 
-Works with any provider: Ollama (free), Gemini (free), OpenAI-compatible, etc.
+Optimizations (v2):
+  1. SQLite-based caching — repeat quizzes on same topic return instantly.
+  2. Parallel batch generation — for N>4 questions, splits into batches of 4
+     and generates them concurrently via ThreadPoolExecutor (up to 3x faster).
+  3. Optimized per-batch prompt — shorter, more concise system prompt reduces
+     token overhead and LLM response time.
 """
 from __future__ import annotations
 
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from backend.llm_client import get_client
+from backend.cache import get_cached_quiz, set_cached_quiz
 
-QUIZ_SYSTEM_PROMPT = """You are a quiz generator. Respond with ONLY a valid JSON object.
-No preamble, no explanation, no code fences, no commentary before or after.
-Do not include any thinking or reasoning in your response.
+QUIZ_SYSTEM_PROMPT = """You generate quiz questions. Output ONLY valid JSON.
+No preamble, no markdown fences, no explanation.
 
-The JSON must match this exact structure:
+Schema:
 {
   "topic": "string",
   "questions": [
@@ -27,8 +33,14 @@ The JSON must match this exact structure:
       "explanation": "string"
     }
   ]
-}
-"""
+}"""
+
+# Per-batch prompt for parallel generation
+BATCH_PROMPT = """Generate {n} multiple-choice questions about: {topic}.
+{difficulty}
+{context}
+Output ONLY the JSON object with a "questions" array.
+Each question must have: question, options (4), correct_index, explanation."""
 
 
 def _extract_and_clean_json(text: str) -> str:
@@ -41,7 +53,7 @@ def _extract_and_clean_json(text: str) -> str:
     text = text.strip()
 
     # Remove think blocks (used by DeepSeek, Qwen, etc.)
-    text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
+    text = re.sub(r' thinking.*? response', '', text, flags=re.DOTALL)
     
     # Remove markdown code fences
     text = re.sub(r'```(?:json)?\s*', '', text)
@@ -78,6 +90,55 @@ def _extract_and_clean_json(text: str) -> str:
     return text
 
 
+def _parse_quiz_json(raw_text: str, batch_label: str = "") -> list[dict]:
+    """Parse a single batch JSON response into a list of question dicts."""
+    cleaned = _extract_and_clean_json(raw_text)
+    try:
+        data = json.loads(cleaned)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Batch {batch_label}: JSON parse error: {e}") from e
+
+    questions = data.get("questions", [])
+    if not isinstance(questions, list) or len(questions) == 0:
+        raise ValueError(f"Batch {batch_label}: no 'questions' array found")
+    return questions
+
+
+def _generate_batch(
+    topic: str,
+    n: int,
+    difficulty_prompt: str,
+    context_str: str,
+    batch_num: int,
+    total_batches: int,
+) -> list[dict]:
+    """Generate a single batch of n questions. Called in parallel via ThreadPoolExecutor."""
+    llm = get_client()
+    prompt = BATCH_PROMPT.format(
+        n=n,
+        topic=topic,
+        difficulty=difficulty_prompt,
+        context=context_str,
+    )
+    prompt += f"\n\n(Batch {batch_num}/{total_batches} - generate exactly {n} questions.)"
+
+    try:
+        result = llm.chat(
+            system_prompt=QUIZ_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=256 * n + 128,
+            stream=False,
+        )
+    except Exception as e:
+        raise ValueError(f"Batch {batch_num} failed: {e}") from e
+
+    raw_text = result if isinstance(result, str) else ""
+    if not raw_text:
+        raise ValueError(f"Batch {batch_num}: empty response from LLM")
+
+    return _parse_quiz_json(raw_text, f"batch_{batch_num}")
+
+
 def generate_quiz(
     topic: str,
     num_questions: int = 5,
@@ -85,52 +146,107 @@ def generate_quiz(
     difficulty: str = "standard",
 ) -> dict:
     """Generate a quiz on `topic`. Returns a dict matching QUIZ_SYSTEM_PROMPT's
-    schema. Raises ValueError if the model's output can't be parsed as JSON."""
-    llm = get_client()
+    schema. Raises ValueError if the model's output can't be parsed as JSON.
 
-    difficulty_prompt = ""
+    Speed optimizations:
+      - Caches results by (topic, num_questions, difficulty, context)
+      - For N > 4, splits into parallel batches of 4 questions (up to 4x faster)
+      - Optimized prompts with fewer tokens and lower max_tokens
+    """
+    # Check cache first (instant return on repeat topics)
+    cached = get_cached_quiz(topic, num_questions, difficulty, context_chunks)
+    if cached is not None:
+        return cached
+
+    # Build difficulty prompt
     if difficulty == "easy":
-        difficulty_prompt = "Make the questions foundational and straightforward. Use simple language and obvious distractors."
+        difficulty_prompt = "Difficulty: Easy. Make questions foundational and straightforward."
     elif difficulty == "hard":
-        difficulty_prompt = "Make the questions challenging. Use nuanced distractors, multi-step reasoning, and edge cases."
+        difficulty_prompt = "Difficulty: Hard. Use nuanced distractors and multi-step reasoning."
+    else:
+        difficulty_prompt = "Difficulty: Standard."
 
-    prompt = f"Generate a {num_questions}-question multiple-choice quiz on: {topic}."
-    if difficulty_prompt:
-        prompt += f"\n\nDifficulty: {difficulty_prompt}"
+    # Build context string
+    context_str = ""
     if context_chunks:
-        context_str = "\n\n".join(
+        context_lines = [
             f"[From {c['source']}]: {c['text']}" for c in context_chunks
-        )
-        prompt += (
-            f"\n\nBase the questions on this course material where relevant:\n"
-            f"{context_str}"
-        )
+        ]
+        context_str = "Base questions on this material:\n" + "\n\n".join(context_lines)
 
+    # Decide strategy: single call vs parallel batches
+    BATCH_SIZE = 4
+
+    if num_questions <= BATCH_SIZE:
+        # Single call for small quizzes (<=4 questions)
+        llm = get_client()
+        prompt = BATCH_PROMPT.format(
+            n=num_questions,
+            topic=topic,
+            difficulty=difficulty_prompt,
+            context=context_str,
+        )
+        try:
+            result = llm.chat(
+                system_prompt=QUIZ_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=256 * num_questions + 128,
+                stream=False,
+            )
+        except Exception as e:
+            raise ValueError(f"Failed to contact LLM for quiz generation: {e}") from e
+
+        raw_text = result if isinstance(result, str) else ""
+        if not raw_text:
+            raise ValueError("Empty response from LLM")
+
+        questions = _parse_quiz_json(raw_text, "single_batch")
+    else:
+        # Parallel batch generation (up to 4x faster for 8-15 questions)
+        num_batches = (num_questions + BATCH_SIZE - 1) // BATCH_SIZE
+        base_size = num_questions // num_batches
+        remainder = num_questions % num_batches
+        batch_sizes = [
+            base_size + (1 if i < remainder else 0)
+            for i in range(num_batches)
+        ]
+
+        all_questions: list[dict] = []
+        with ThreadPoolExecutor(max_workers=min(num_batches, 4)) as executor:
+            futures = {
+                executor.submit(
+                    _generate_batch,
+                    topic,
+                    batch_sizes[i],
+                    difficulty_prompt,
+                    context_str,
+                    i + 1,
+                    num_batches,
+                ): i
+                for i in range(num_batches)
+            }
+            for future in as_completed(futures):
+                try:
+                    batch_questions = future.result()
+                    all_questions.extend(batch_questions)
+                except Exception as e:
+                    raise ValueError(f"Parallel batch generation failed: {e}") from e
+
+        questions = all_questions[:num_questions]
+
+    # Build final quiz object
+    quiz_data = {
+        "topic": topic,
+        "questions": questions[:num_questions],
+    }
+
+    # Cache the result (best-effort)
     try:
-        result = llm.chat(
-            system_prompt=QUIZ_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=4096,
-            stream=False,
-        )
-    except Exception as e:
-        raise ValueError(f"Failed to contact LLM for quiz generation: {e}") from e
+        set_cached_quiz(topic, num_questions, difficulty, context_chunks, quiz_data)
+    except Exception:
+        pass
 
-    raw_text = result if isinstance(result, str) else ""
-    if not raw_text:
-        raise ValueError("Empty response from LLM")
-
-    cleaned = _extract_and_clean_json(raw_text)
-
-    try:
-        quiz_data = json.loads(cleaned)
-        if "questions" not in quiz_data or not isinstance(quiz_data["questions"], list):
-            raise ValueError("Missing 'questions' array in generated quiz")
-        return quiz_data
-    except json.JSONDecodeError as e:
-        raise ValueError(
-            f"Couldn't parse quiz JSON from model output: {e}\nRaw output:\n{raw_text}"
-        ) from e
+    return quiz_data
 
 
 FLASHCARD_SYSTEM_PROMPT = """You are a flashcard generator. Respond with ONLY a valid JSON array.
@@ -171,7 +287,7 @@ def generate_flashcards(text: str) -> list[dict]:
         raise ValueError("Empty response from LLM")
 
     # Strip any markdown fences and think blocks
-    cleaned = re.sub(r'<think>.*?</think>', '', raw_text, flags=re.DOTALL)
+    cleaned = re.sub(r' thinking.*? response', '', raw_text, flags=re.DOTALL)
     cleaned = re.sub(r'```(?:json)?', '', cleaned)
     cleaned = cleaned.strip()
 

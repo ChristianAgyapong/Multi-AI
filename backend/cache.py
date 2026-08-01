@@ -121,3 +121,62 @@ def clear_cache() -> int:
     conn.commit()
     return count
 
+
+# ── Quiz-specific caching ────────────────────────────────────────────────
+
+def _make_quiz_cache_key(topic: str, num_questions: int, difficulty: str, context_chunks: list[dict] | None) -> str:
+    """Generate a deterministic cache key for quiz results."""
+    context_str = json.dumps(
+        [{"source": c["source"]} for c in (context_chunks or [])],
+        sort_keys=True,
+    )
+    raw = f"quiz||{topic.lower().strip()}||{num_questions}||{difficulty}||{context_str}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def get_cached_quiz(topic: str, num_questions: int, difficulty: str, context_chunks: list[dict] | None) -> dict | None:
+    """Return cached quiz dict if it exists, else None."""
+    key = _make_quiz_cache_key(topic, num_questions, difficulty, context_chunks)
+    conn = _get_conn()
+    row = conn.execute(
+        "SELECT answer, hit_count FROM qa_cache WHERE cache_key = ?", (key,)
+    ).fetchone()
+    if row is None:
+        return None
+    answer, hits = row
+    conn.execute(
+        "UPDATE qa_cache SET hit_count = ? WHERE cache_key = ?",
+        (hits + 1, key),
+    )
+    conn.commit()
+    try:
+        return json.loads(answer)
+    except json.JSONDecodeError:
+        return None
+
+
+def set_cached_quiz(topic: str, num_questions: int, difficulty: str, context_chunks: list[dict] | None, quiz_data: dict) -> None:
+    """Store a quiz result in the cache."""
+    key = _make_quiz_cache_key(topic, num_questions, difficulty, context_chunks)
+    context_snippet = json.dumps(
+        [{"source": c["source"]} for c in (context_chunks or [])],
+        sort_keys=True,
+    )
+    conn = _get_conn()
+    conn.execute(
+        """
+        INSERT OR REPLACE INTO qa_cache
+            (cache_key, question, context_snippet, model, answer, cached_at, hit_count)
+        VALUES (?, ?, ?, ?, ?, ?, 1)
+        """,
+        (
+            key,
+            f"quiz:{topic}",
+            context_snippet,
+            "quiz_generator",
+            json.dumps(quiz_data, ensure_ascii=False),
+            datetime.now(timezone.utc).isoformat(),
+        ),
+    )
+    conn.commit()
+
