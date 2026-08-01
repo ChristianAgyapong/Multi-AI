@@ -26,6 +26,20 @@ from typing import Generator
 
 import requests
 
+# Default generation temperature. A touch of warmth (0.5) makes the tutor feel
+# more natural and creative, while structured outputs (quiz JSON) pass ~0.2.
+DEFAULT_TEMPERATURE = float(os.environ.get("LLM_TEMPERATURE", "0.7"))
+
+# Smarter fallback chain for OpenRouter free tier. If the primary model is
+# overloaded, decommissioned, or returns an empty answer, the client will
+# automatically retry with these higher-quality free models in order.
+OPENROUTER_FALLBACK_MODELS = [
+    "deepseek/deepseek-r1-distill-qwen-32b:free",
+    "qwen/qwen-2.5-72b-instruct:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "google/gemma-4-26b-a4b-it:free",
+]
+
 
 # ---------------------------------------------------------------------------
 # Abstract base
@@ -41,6 +55,7 @@ class LLMClient(ABC):
         messages: list[dict],
         max_tokens: int = 1024,
         stream: bool = False,
+        temperature: float | None = None,
     ) -> str | Generator[str, None, None]:
         ...
 
@@ -72,8 +87,10 @@ class OllamaClient(LLMClient):
         messages: list[dict],
         max_tokens: int = 1024,
         stream: bool = False,
+        temperature: float | None = None,
     ) -> str | Generator[str, None, None]:
         # Build Ollama payload
+        temperature = DEFAULT_TEMPERATURE if temperature is None else temperature
         ollama_messages = [{"role": "system", "content": system_prompt}]
         for m in messages:
             role = m["role"]
@@ -100,7 +117,7 @@ class OllamaClient(LLMClient):
             "stream": stream,
             "options": {
                 "num_predict": max_tokens,
-                "temperature": 0.2,
+                "temperature": temperature,
                 "top_p": 1.0,
             },
         }
@@ -163,11 +180,13 @@ class GeminiClient(LLMClient):
         messages: list[dict],
         max_tokens: int = 1024,
         stream: bool = False,
+        temperature: float | None = None,
     ) -> str | Generator[str, None, None]:
         if not self.api_key:
             raise RuntimeError(
                 "GEMINI_API_KEY is not set. Get a free key at https://aistudio.google.com"
             )
+        temperature = DEFAULT_TEMPERATURE if temperature is None else temperature
 
         api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:{'streamGenerateContent' if stream else 'generateContent'}?key={self.api_key}"
 
@@ -209,7 +228,7 @@ class GeminiClient(LLMClient):
             "contents": gemini_contents,
             "generationConfig": {
                 "maxOutputTokens": max_tokens,
-                "temperature": 0.2,
+                "temperature": temperature,
                 "topP": 1.0,
             },
         }
@@ -280,10 +299,14 @@ class OpenAIClient(LLMClient):
         "llama-3.2-11b-vision-preview": "groq/compound-mini",
     }
 
-    def __init__(self, model: str = None, api_key: str = None, base_url: str = None):
+    def __init__(self, model: str = None, api_key: str = None, base_url: str = None, fallback_models: list[str] | None = None):
         self.model = model or os.environ.get("OPENAI_MODEL", "gpt-3.5-turbo")
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
         self.base_url = (base_url or os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")).rstrip("/")
+        if fallback_models is None:
+            env_fallback = os.environ.get("OPENAI_FALLBACK_MODELS", "")
+            fallback_models = [m.strip() for m in env_fallback.split(",") if m.strip()]
+        self.fallback_models = list(fallback_models or [])
 
     @property
     def name(self) -> str:
@@ -311,9 +334,11 @@ class OpenAIClient(LLMClient):
         messages: list[dict],
         max_tokens: int = 1024,
         stream: bool = False,
+        temperature: float | None = None,
     ) -> str | Generator[str, None, None]:
         if not self.api_key:
             raise RuntimeError("OPENAI_API_KEY is not set.")
+        temperature = DEFAULT_TEMPERATURE if temperature is None else temperature
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -384,7 +409,7 @@ class OpenAIClient(LLMClient):
             "model": self.model,
             "messages": openai_messages,
             "max_tokens": max_tokens,
-            "temperature": 0.2,
+            "temperature": temperature,
             "top_p": 0.9,
             "stream": stream,
         }
@@ -392,7 +417,36 @@ class OpenAIClient(LLMClient):
         if stream:
             return self._stream_response(headers, payload)
         else:
-            return self._non_stream_response(headers, payload)
+            return self._non_stream_response_with_fallback(headers, payload)
+
+    def _non_stream_response_with_fallback(self, headers: dict, payload: dict) -> str:
+        """Try the primary model, then each fallback model until we get a non-empty answer."""
+        models = [self.model] + [m for m in self.fallback_models if m != self.model]
+        last_err: Exception | None = None
+
+        for i, model in enumerate(models):
+            if i > 0:
+                print(f"[LLM] Primary model failed/empty — retrying with fallback: {model}")
+            payload["model"] = model
+            try:
+                result = self._non_stream_response(headers, payload)
+                if result and result.strip():
+                    # Permanently upgrade to the working model for the rest of the session
+                    if self.model != model:
+                        print(f"[LLM] Model upgraded to: {model}")
+                        self.model = model
+                    return result
+                last_err = ValueError("Empty response from model")
+            except requests.HTTPError as e:
+                last_err = e
+                status = e.response.status_code if e.response is not None else 0
+                # Auth errors won't be fixed by swapping models — raise immediately
+                if status in (401, 403):
+                    raise
+            except Exception as e:
+                last_err = e
+
+        raise last_err if last_err else ValueError("All models returned empty responses")
 
     def _handle_decommissioned(self, error_body: str) -> str | None:
         """Check if error is a decommissioned model and return replacement name."""
@@ -534,6 +588,10 @@ def get_client(require_vision: bool = False) -> LLMClient:
     elif provider == "gemini":
         return GeminiClient()
     elif provider == "openai":
+        # Attach the smarter fallback chain automatically for OpenRouter users
+        is_openrouter = "openrouter.ai" in os.environ.get("OPENAI_BASE_URL", "").lower()
+        if is_openrouter:
+            return OpenAIClient(fallback_models=OPENROUTER_FALLBACK_MODELS)
         return OpenAIClient()
     elif provider == "anthropic":
         return OpenAIClient(

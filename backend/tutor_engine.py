@@ -14,6 +14,7 @@ from typing import Generator
 
 from backend.cache import get_cached_answer, set_cached_answer
 from backend.llm_client import get_client
+from backend.live_facts import fetch_live_fact, detect_time_sensitive
 
 MODEL = os.environ.get("LLM_MODEL", "free-llm")
 
@@ -111,7 +112,12 @@ def get_system_prompt(mode: str = DEFAULT_AGENT_MODE, student_summary: str = "")
     mode_config = AGENT_MODES.get(mode, AGENT_MODES[DEFAULT_AGENT_MODE])
     base_prompt = mode_config["prompt"]
     
-    global_rules = """
+    from datetime import datetime, timezone
+    current_date = datetime.now(timezone.utc).strftime("%B %d, %Y")
+
+    global_rules = f"""
+
+CURRENT DATE: {current_date} (UTC). You MUST use this date as the current date when answering time-sensitive questions.
 
 GLOBAL GUIDELINES:
 
@@ -127,8 +133,15 @@ GLOBAL GUIDELINES:
     else:
         global_rules += "   - Adapt to the student\'s level based on their writing.\n\n"
 
-    global_rules += """3. ACCURACY:
-   - Provide correct information. If unsure, say so.
+    global_rules += """3. RECENCY & CURRENT EVENTS AWARENESS:
+   - **Current date**: The current date is provided at the top of this prompt. Use it as the reference for "current" or "today".
+   - **Knowledge cutoff**: Your training data has a cutoff. For questions about recent events, leaders, laws, or fast-changing facts (e.g., "Who is the current president?", "What is the latest GDP?"), you MUST do the following:
+     a. **First** check if the answer is likely to have changed since your training cutoff. If so, **clearly state your knowledge cutoff** and that the information may have changed.
+     b. **Give the most recent information you have**, but explicitly mark it with the date/year you know it from.
+     c. **Suggest the student verify** the current information from a reliable live source (e.g., "You can verify the current president by searching online").
+     d. **Never pretend** you know current information that you don't. Always be honest about your limitations.
+   - **Example**: If asked "Who is the current president of Ghana?", say: "As of my last update in [YOUR TRAINING CUTOFF], the president was Nana Akufo-Addo (elected 2017, re-elected 2020). However, since this is a time-sensitive position that may have changed, I recommend checking the latest news or official government sources for the current officeholder."
+   - **Future events**: For questions about predictions, future events, or speculative topics, clearly state that you cannot predict the future and can only discuss known plans or trends.
 
 4. LEVEL-APPROPRIATE LANGUAGE:
    - BASIC: Simple words, short sentences, analogies.
@@ -137,11 +150,21 @@ GLOBAL GUIDELINES:
 
 5. PLAIN LANGUAGE: Explain technical terms after using them.
 
-6. STRUCTURE & LENGTH: Provide thorough, well-developed paragraphs. Do not skimp on details unless the student explicitly asks for a short summary. Make your explanations rich and extensive.
+6. STRUCTURE & LENGTH: Provide thorough, well-developed paragraphs. Do not skimp on details unless the student explicitly asks for a short summary. Make your explanations rich and extensive. Aim for depth — cover the "what", "how", and "why" of each concept.
 
-7. CONVERSATION & EMPATHY: Be an active, empathetic listener. If the student is confused, validate their struggle and try a highly creative, different approach.
+7. CONVERSATION & EMPATHY: Be an active, empathetic listener. If the student is confused, validate their struggle and try a highly creative, different approach. Use analogies from everyday life, stories, or visual descriptions.
 
-8. FOLLOW-UP: End your responses with an engaging, thought-provoking question to keep the conversation going and check their understanding.
+8. FOLLOW-UP: End your responses with an engaging, thought-provoking question to keep the conversation going and check their understanding. Ask questions that require the student to apply the knowledge, not just recall it.
+
+9. QUALITY CHECKLIST (ask yourself before responding):
+   - [ ] Did I explain the WHY behind the concept, not just the WHAT?
+   - [ ] Did I use at least one concrete example or analogy?
+   - [ ] Did I bold the key terms so they stand out?
+   - [ ] Is my response well-structured with bullet points or steps?
+   - [ ] Did I connect this to something the student might already know?
+   - [ ] If they uploaded a document, did I reference it specifically?
+   - [ ] Did I think step-by-step before answering?
+   - [ ] Did I consider potential counterexamples or edge cases?
 """
     return base_prompt + global_rules
 
@@ -165,6 +188,23 @@ def _build_messages(
             f"{context_str}\n"
             "--- End of uploaded document ---"
         )
+
+    # LIVE FACT LOOKUP for time-sensitive questions
+    # If the student asks something like "Who is the current president of Ghana?",
+    # fetch a VERIFIED, up-to-date fact from Wikipedia and inject it as
+    # authoritative context so the model answers with current data.
+    if detect_time_sensitive(question):
+        try:
+            live_fact = fetch_live_fact(question)
+            if live_fact:
+                text_parts.append(
+                    "VERIFIED LIVE FACT (from Wikipedia, fetched just now - this is "
+                    "AUTHORITATIVE and more current than your training data):\n"
+                    f"{live_fact}\n"
+                    "--- End of live fact ---"
+                )
+        except Exception as e:
+            print(f"[TutorEngine] Live fact lookup failed: {e}")
 
     text_parts.append(f"Student question: {question}")
     final_text = "\n\n".join(text_parts)
@@ -191,7 +231,7 @@ def _build_messages(
 
 
 def _strip_think(text: str) -> str:
-    """Remove <think>...</think> reasoning blocks from model output."""
+    """Remove  thinking...  response reasoning blocks from model output."""
     return re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
 
 
@@ -201,7 +241,7 @@ def _is_thinking_enabled() -> bool:
 
 
 def _streaming_think_filter(tokens: Generator[str, None, None]) -> Generator[str, None, None]:
-    """Filter <think> blocks from streaming tokens in real-time."""
+    """Filter  thinking<...>  blocks from streaming tokens in real-time."""
     buffer = ""
     depth = 0
     in_tag_open = False
@@ -264,9 +304,11 @@ def ask_tutor(
     student_model_summary: str = "",
 ) -> str:
     if image_bytes is None and not student_model_summary:
-        cached = get_cached_answer(question, MODEL, context_chunks)
-        if cached is not None:
-            return cached
+        # Skip cache for time-sensitive questions so we always fetch live facts
+        if not detect_time_sensitive(question):
+            cached = get_cached_answer(question, MODEL, context_chunks)
+            if cached is not None:
+                return cached
 
     has_images = image_bytes is not None
     llm = get_client(require_vision=has_images)
@@ -277,7 +319,8 @@ def ask_tutor(
 
     system_prompt = get_system_prompt(agent_mode, student_model_summary)
 
-    result = llm.chat(system_prompt=system_prompt, messages=messages, max_tokens=2048, stream=False)
+    # Higher max_tokens for richer, more thorough answers
+    result = llm.chat(system_prompt=system_prompt, messages=messages, max_tokens=4096, stream=False)
     answer = result if isinstance(result, str) else ""
     answer = _strip_think(answer).strip()
 
@@ -313,6 +356,9 @@ def ask_tutor_stream(
 
     system_prompt = get_system_prompt(agent_mode, student_model_summary)
 
+    # Higher max_tokens for richer, more thorough streaming answers
+    stream_max_tokens = 4096
+
     # Vision: try streaming first (faster perceived response), fall back to non-streaming
     if has_vision:
         try:
@@ -339,7 +385,7 @@ def ask_tutor_stream(
                 yield f"⚠️ Could not analyse the image: {e}"
         return
 
-    raw_stream = llm.chat(system_prompt=system_prompt, messages=messages, max_tokens=2048, stream=True)
+    raw_stream = llm.chat(system_prompt=system_prompt, messages=messages, max_tokens=stream_max_tokens, stream=True)
     
     if not isinstance(raw_stream, Generator):
         cleaned = _strip_think(str(raw_stream))
