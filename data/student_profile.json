@@ -1,5 +1,5 @@
 {
-  "interaction_count": 98,
+  "interaction_count": 112,
   "flashcards": [
     {
       "front": "Photosynthesis",
@@ -36,19 +36,19 @@
       "quiz_total": 0
     },
     "general": {
-      "questions_asked": 64,
+      "questions_asked": 74,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
     },
     "help": {
-      "questions_asked": 1,
+      "questions_asked": 2,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
     },
     "what": {
-      "questions_asked": 8,
+      "questions_asked": 10,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -96,7 +96,7 @@
       "quiz_total": 0
     },
     "tell": {
-      "questions_asked": 3,
+      "questions_asked": 4,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -234,6 +234,12 @@
       "quiz_total": 0
     },
     "usage": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "mitochondria": {
       "questions_asked": 1,
       "quiz_attempts": 0,
       "quiz_correct": 0,
