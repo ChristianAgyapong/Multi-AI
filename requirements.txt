@@ -20,6 +20,7 @@ pillow>=10.4.0
 # LLM Providers
 anthropic>=0.40.0
 requests>=2.31.0
+ddgs>=9.0.0
 
 # Speech (optional — uncomment or run `pip install faster-whisper gtts` to enable)
 # faster-whisper>=1.0.0

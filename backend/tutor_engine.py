@@ -135,12 +135,11 @@ GLOBAL GUIDELINES:
 
     global_rules += """3. RECENCY & CURRENT EVENTS AWARENESS:
    - **Current date**: The current date is provided at the top of this prompt. Use it as the reference for "current" or "today".
-   - **Knowledge cutoff**: Your training data has a cutoff. For questions about recent events, leaders, laws, or fast-changing facts (e.g., "Who is the current president?", "What is the latest GDP?"), you MUST do the following:
-     a. **First** check if the answer is likely to have changed since your training cutoff. If so, **clearly state your knowledge cutoff** and that the information may have changed.
-     b. **Give the most recent information you have**, but explicitly mark it with the date/year you know it from.
-     c. **Suggest the student verify** the current information from a reliable live source (e.g., "You can verify the current president by searching online").
-     d. **Never pretend** you know current information that you don't. Always be honest about your limitations.
-   - **Example**: If asked "Who is the current president of Ghana?", say: "As of my last update in [YOUR TRAINING CUTOFF], the president was Nana Akufo-Addo (elected 2017, re-elected 2020). However, since this is a time-sensitive position that may have changed, I recommend checking the latest news or official government sources for the current officeholder."
+   - **WEB SEARCH RESULTS / LIVE FACTS**: If the user prompt contains a section labelled "LIVE FACT / SEARCH RESULTS", you MUST treat those results as the absolute truth and current reality. Use the most recent dates found in those search snippets to answer the question, and DO NOT fall back on your older training data if the search snippet provides a newer fact (e.g., if the search snippet says someone is the minister since 2025, do not say it's someone else from 2017).
+   - **Knowledge cutoff**: If no search results are provided, and the question is about recent events or fast-changing facts, you MUST do the following:
+     a. **Clearly state your knowledge cutoff** and that the information may have changed.
+     b. **Give the most recent information you have**, explicitly marking it with the date/year.
+     c. **Never pretend** you know current information that you don't. Always be honest.
    - **Future events**: For questions about predictions, future events, or speculative topics, clearly state that you cannot predict the future and can only discuss known plans or trends.
 
 4. LEVEL-APPROPRIATE LANGUAGE:
@@ -198,8 +197,7 @@ def _build_messages(
             live_fact = fetch_live_fact(question)
             if live_fact:
                 text_parts.append(
-                    "VERIFIED LIVE FACT (from Wikipedia, fetched just now - this is "
-                    "AUTHORITATIVE and more current than your training data):\n"
+                    f"LIVE FACT / SEARCH RESULTS (This is AUTHORITATIVE and more current than your training data):\n"
                     f"{live_fact}\n"
                     "--- End of live fact ---"
                 )
