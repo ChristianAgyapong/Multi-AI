@@ -131,9 +131,9 @@ GLOBAL GUIDELINES:
     if student_summary:
         global_rules += f"   - Known progress: {student_summary}\n\n"
     else:
-        global_rules += "   - Adapt to the student\'s level based on their writing.\n\n"
+        global_rules += "   - Adapt to the student's level based on their writing.\n\n"
 
-    global_rules += """3. RECENCY & CURRENT EVENTS AWARENESS:
+    global_rules += r"""3. RECENCY & CURRENT EVENTS AWARENESS:
    - **Current date**: The current date is provided at the top of this prompt. Use it as the reference for "current" or "today".
    - **WEB SEARCH RESULTS / LIVE FACTS**: If the user prompt contains a section labelled "LIVE FACT / SEARCH RESULTS", you MUST treat those results as the absolute truth and current reality. Use the most recent dates found in those search snippets to answer the question, and DO NOT fall back on your older training data if the search snippet provides a newer fact (e.g., if the search snippet says someone is the minister since 2025, do not say it's someone else from 2017).
    - **Knowledge cutoff**: If no search results are provided, and the question is about recent events or fast-changing facts, you MUST do the following:
@@ -172,6 +172,7 @@ GLOBAL GUIDELINES:
      $$\frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$
    - NEVER write math as raw ASCII like `x^2`, `sqrt(x)`, `e^x`, `lim_{x->0}`. Always wrap in `$...$`.
    - This applies everywhere: explanations, worked examples, quiz questions, step-by-step solutions, everywhere.
+   - **CURRENCY**: If you are writing about money (e.g., US Dollars), you MUST escape the dollar sign like this: `\$20` or `\$50`. Do not use a plain `$` for currency, or the system will incorrectly render it as a math equation!
 """
     return base_prompt + global_rules
 
