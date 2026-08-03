@@ -107,9 +107,13 @@ def get_cache_stats() -> dict[str, Any]:
     conn = _get_conn()
     total = conn.execute("SELECT COUNT(*) FROM qa_cache").fetchone()[0]
     total_hits = conn.execute("SELECT COALESCE(SUM(hit_count), 0) FROM qa_cache").fetchone()[0]
+    total_bytes = conn.execute(
+        "SELECT COALESCE(SUM(LENGTH(answer) + LENGTH(question) + LENGTH(context_snippet)), 0) FROM qa_cache"
+    ).fetchone()[0]
     return {
         "cached_entries": total,
         "total_hits": total_hits,
+        "cache_size_bytes": int(total_bytes),
     }
 
 

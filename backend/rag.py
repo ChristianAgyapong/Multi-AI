@@ -217,6 +217,38 @@ class MaterialStore:
     def is_empty(self) -> bool:
         return len(self.chunks) == 0
 
+    def remove_document(self, filename: str) -> int:
+        """Remove all chunks belonging to a source document.
+
+        Returns the number of chunks removed (0 if the source wasn't found).
+        """
+        indices = [i for i, src in enumerate(self.sources) if src == filename]
+        if not indices:
+            return 0
+
+        index_set = set(indices)
+        self.chunks = [c for i, c in enumerate(self.chunks) if i not in index_set]
+        self.sources = [s for i, s in enumerate(self.sources) if i not in index_set]
+
+        if self._embeddings is not None:
+            self._embeddings = np.delete(self._embeddings, indices, axis=0)
+            if self._embeddings.shape[0] == 0:
+                self._embeddings = None
+
+        # Rebuild TF-IDF vocabulary if we dropped the source that trained it
+        if not self._use_gemini and hasattr(self, "_tfidf_vectorizer"):
+            if self.chunks:
+                from sklearn.feature_extraction.text import TfidfVectorizer
+
+                vectorizer = TfidfVectorizer(max_features=4096)
+                matrix = vectorizer.fit_transform(self.chunks).toarray()
+                self._tfidf_vectorizer = vectorizer
+                self._embeddings = matrix
+            else:
+                self._tfidf_vectorizer = None
+
+        return len(indices)
+
     def get_stats(self) -> dict:
         backend = "Gemini text-embedding-004" if self._use_gemini else "TF-IDF"
         return {

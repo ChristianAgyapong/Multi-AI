@@ -1,43 +1,34 @@
-# Tuning & Smartness Enhancement — Progress
+# Frontend Build — Progress
+
+## Objective
+Build a polished, complete, buildless single-page frontend (vanilla JS) that talks to the existing FastAPI backend. Served via `SERVE_FRONTEND=1` and works locally + on Render.
 
 ## Steps
-- [x] Step 1: backend/llm_client.py — Configurable temperature (0.5 default), smarter model routing with fallback chain, higher max_tokens defaults
-- [x] Step 2: backend/tutor_engine.py — Add REASONING & QUALITY prompt block, answer quality checklist, self-review, raise max_tokens to 4096, live fact lookup for time-sensitive questions, date-aware system prompt, cache bypass for time-sensitive questions
-- [x] Step 3: backend/quiz.py — Higher temperature for quiz generation, richer question-quality prompt (better distractors/explanations)
-- [x] Step 4: backend/cache.py — Version-bust cache key to avoid serving stale answers
-- [x] Step 5: backend/live_facts.py — Created live fact lookup module that fetches verified current info from Wikipedia for time-sensitive questions (e.g. "Who is the current president of Ghana?") — bypasses stale training data
-- [x] Step 6: Run `streamlit run app.py` and verify clean boot — **RUNNING at http://localhost:8501**
+- [x] Step 1: frontend/js/config.js — API base resolution + shared config
+- [x] Step 2: frontend/js/session.js — session UUID, apiFetch, SSE + JSON helpers
+- [x] Step 3: frontend/js/sidebar.js — provider status, cache stats, student profile, materials
+- [x] Step 4: frontend/js/chat.js — SSE streaming chat, image attach + clipboard paste, voice, TTS, in-chat quiz, retry
+- [x] Step 5: frontend/js/quiz.js — quiz generation/render/checking with difficulty
+- [x] Step 6: frontend/js/flashcards.js — fetch/generate/render flip cards
+- [x] Step 7: frontend/js/debate.js — dual-agent debate arena
+- [x] Step 8: frontend/css/style.css — complete premium glassmorphic design system + responsive
+- [x] Step 9: frontend/index.html — structure wiring all modules
+- [x] Step 10: Syntax-check JS (node --check) + local uvicorn smoke test with SERVE_FRONTEND=1
+- [x] Step 11: Render deployment instructions
 
-## Key Enhancements
-1. **Live Fact Lookup**: Time-sensitive questions (current leaders, ministers, recent events) trigger Wikipedia API call to inject verified current data into the context — no more stale training-data answers
-2. **Date-Aware Prompts**: System prompt now includes the current date so the model knows the temporal context
-3. **Quality Checklist**: The model is prompted to self-review: explain WHY, use examples, bold key terms, structure well, connect to prior knowledge, think step-by-step
-4. **Cache Intelligence**: Time-sensitive questions skip the cache entirely so they always get fresh live facts
-5. **Higher max_tokens**: Raised to 4096 from 1024 for richer, more thorough answers
-6. **Better Temperature**: 0.5 (default) for balanced creativity vs. accuracy
-7. **Minister Portfolio Support**: Live fact lookup now supports 60+ countries' ministers (education, health, finance, etc.) with table-based Wikipedia page parsing
+## Backend additions (required to fully support the frontend)
+- [x] backend/rag.py — added `remove_document` to MaterialStore (clean rewrite fixed indentation corruption)
+- [x] backend/api.py — added `DELETE /materials` endpoint + pptx support in upload
+- [x] backend/cache.py — added `cache_size_bytes` to `get_cache_stats()` return value
 
----
-
-# Deployment to Render — Backend API (Phase 1)
-
-## Steps
-- [x] Step 1: backend/api.py — Configurable CORS via `CORS_ORIGINS` env + gate legacy frontend mount behind `SERVE_FRONTEND` + add API-info root route
-- [x] Step 2: Create requirements-api.txt — lean backend-only dependencies (no Streamlit)
-- [x] Step 3: Create runtime.txt — pin Python runtime for Render
-- [x] Step 4: Create render.yaml — Render Blueprint for the API web service
-- [x] Step 5: Create .env.example — document all supported environment variables
-- [x] Step 6: Update .gitignore — ignore runtime artifacts (db, profile, node_modules, .next)
-- [x] Step 7: Update README.md — add "Deploy the Backend to Render" section
-- [x] Step 8: Verify — py_compile backend/api.py + optional local uvicorn smoke test
-
-## Verification results
-- ✅ `python -m py_compile backend/api.py` → passes
-- ✅ App boots with `SERVE_FRONTEND=0` → API root route registered (`/`, `/docs`, `/health`, `/ask/stream`, `/quiz`)
-- ✅ App boots with `SERVE_FRONTEND=1` → legacy UI served at root (HTTP 200, contains "Multimodal AI Tutor")
-- ✅ Configurable CORS middleware registered with `CORS_ORIGINS` env parsing
-
-## Next steps (outside this phase)
-- [ ] Push repo to GitHub and deploy via Render Blueprint (or manual Web Service)
-- [ ] Set LLM provider env vars in Render dashboard
-- [ ] Build the Next.js frontend and deploy as a second Render service pointing to this API
+## Verification
+- [x] All backend files compile (`python -m py_compile`)
+- [x] Smoke test with `SERVE_FRONTEND=1 uvicorn backend.api:app`:
+  - `/` → 200 (serves index.html containing "Multimodal AI Tutor")
+  - `/static/js/session.js`, `/static/css/style.css` → 200
+  - `/health` → 200
+  - `/provider/status` → 200
+  - `/cache/stats` → 200 (includes `cache_size_bytes`)
+  - `/student/profile` → 200
+  - `/materials` → 200
+  - `/flashcards` → 200

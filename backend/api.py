@@ -299,11 +299,30 @@ async def upload_material(file: UploadFile, request: Request):
         text = extract_text_from_pdf(file_bytes)
     elif file.filename and file.filename.endswith(".docx"):
         text = extract_text_from_docx(file_bytes)
+    elif file.filename and file.filename.endswith((".ppt", ".pptx")):
+        from backend.rag import extract_text_from_pptx
+        text = extract_text_from_pptx(file_bytes)
     else:
         text = file_bytes.decode("utf-8", errors="ignore")
 
     n_chunks = store.add_document(file.filename or "unknown", text)
     return {"filename": file.filename, "chunks_added": n_chunks, "session_id": sid}
+
+
+@app.delete("/materials")
+def delete_material(filename: str = "", request: Request = None):
+    """Remove a single source document from the session RAG store."""
+    sid = _get_session_id(request)
+    store = _get_store(sid)
+
+    if not filename:
+        raise HTTPException(status_code=400, detail="filename query parameter is required")
+
+    removed = store.remove_document(filename)
+    if removed == 0:
+        raise HTTPException(status_code=404, detail=f"Material '{filename}' not found")
+
+    return {"filename": filename, "chunks_removed": removed, "session_id": sid}
 
 
 @app.get("/materials")
