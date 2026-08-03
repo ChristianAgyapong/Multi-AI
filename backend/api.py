@@ -53,10 +53,19 @@ app = FastAPI(
     docs_url="/docs",
 )
 
-# CORS — allow any origin in dev; tighten for production
+# CORS — allow configurable origins for production.
+# Set CORS_ORIGINS to a comma-separated list of allowed origins, e.g.:
+#   CORS_ORIGINS=https://my-app.onrender.com,https://my-frontend.vercel.app
+# If unset, defaults to ["*"] (allow any origin — fine for local dev).
+_cors_origins_env = os.environ.get("CORS_ORIGINS", "").strip()
+if _cors_origins_env:
+    _cors_origins = [o.strip() for o in _cors_origins_env.split(",") if o.strip()]
+else:
+    _cors_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -466,10 +475,32 @@ def provider_status():
     return {"provider": provider or "none", "connected": False, "message": "No provider configured"}
 
 
-# Serve the frontend directory if it exists
-if os.path.exists("frontend"):
+# ---------------------------------------------------------------------------
+# Static frontend (legacy vanilla-JS UI — optional)
+# ---------------------------------------------------------------------------
+# Serve the legacy `frontend/` directory ONLY when SERVE_FRONTEND=1.
+# Production API deployments (e.g. Render) can set SERVE_FRONTEND=0 (default)
+# to expose a pure JSON API. When the Next.js frontend is ready, it will talk
+# to this API via CORS.
+_serve_frontend = os.environ.get("SERVE_FRONTEND", "0").strip().lower() in (
+    "1", "true", "yes", "on"
+)
+
+if _serve_frontend and os.path.exists("frontend"):
     app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
     @app.get("/")
     async def serve_frontend():
         return FileResponse("frontend/index.html")
+else:
+    @app.get("/")
+    async def api_root():
+        """API root — shows service info and available docs."""
+        return {
+            "service": "Multimodal AI Tutor API",
+            "version": "2.0.0",
+            "status": "ok",
+            "docs": "/docs",
+            "health": "/health",
+            "frontend": "Not served (set SERVE_FRONTEND=1 to enable the legacy UI)",
+        }

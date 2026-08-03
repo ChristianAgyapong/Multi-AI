@@ -16,3 +16,28 @@
 5. **Higher max_tokens**: Raised to 4096 from 1024 for richer, more thorough answers
 6. **Better Temperature**: 0.5 (default) for balanced creativity vs. accuracy
 7. **Minister Portfolio Support**: Live fact lookup now supports 60+ countries' ministers (education, health, finance, etc.) with table-based Wikipedia page parsing
+
+---
+
+# Deployment to Render — Backend API (Phase 1)
+
+## Steps
+- [x] Step 1: backend/api.py — Configurable CORS via `CORS_ORIGINS` env + gate legacy frontend mount behind `SERVE_FRONTEND` + add API-info root route
+- [x] Step 2: Create requirements-api.txt — lean backend-only dependencies (no Streamlit)
+- [x] Step 3: Create runtime.txt — pin Python runtime for Render
+- [x] Step 4: Create render.yaml — Render Blueprint for the API web service
+- [x] Step 5: Create .env.example — document all supported environment variables
+- [x] Step 6: Update .gitignore — ignore runtime artifacts (db, profile, node_modules, .next)
+- [x] Step 7: Update README.md — add "Deploy the Backend to Render" section
+- [x] Step 8: Verify — py_compile backend/api.py + optional local uvicorn smoke test
+
+## Verification results
+- ✅ `python -m py_compile backend/api.py` → passes
+- ✅ App boots with `SERVE_FRONTEND=0` → API root route registered (`/`, `/docs`, `/health`, `/ask/stream`, `/quiz`)
+- ✅ App boots with `SERVE_FRONTEND=1` → legacy UI served at root (HTTP 200, contains "Multimodal AI Tutor")
+- ✅ Configurable CORS middleware registered with `CORS_ORIGINS` env parsing
+
+## Next steps (outside this phase)
+- [ ] Push repo to GitHub and deploy via Render Blueprint (or manual Web Service)
+- [ ] Set LLM provider env vars in Render dashboard
+- [ ] Build the Next.js frontend and deploy as a second Render service pointing to this API
