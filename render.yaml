@@ -19,34 +19,35 @@ services:
     runtime: python
     plan: free
     rootDir: .
-    buildCommand: pip install -r requirements-api.txt
-    startCommand: uvicorn backend.api:app --host 0.0.0.0 --port $PORT
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     autoDeploy: true
     envVars:
-      # ── LLM provider ─────────────────────────────────────────────────────
-      # For free production hosting, set LLM_PROVIDER=gemini and a free key.
       - key: LLM_PROVIDER
-        value: gemini
-        sync: false            # set your own value in the dashboard
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
-      # ── OpenAI-compatible (optional) ────────────────────────────────────
-      # - key: OPENAI_API_KEY
-      #   sync: false
-      # - key: OPENAI_BASE_URL
-      #   value: https://openrouter.ai/api/v1
-      # - key: OPENAI_MODEL
-      #   value: deepseek/deepseek-r1-distill-qwen-32b:free
-      # ── Vision (optional) ───────────────────────────────────────────────
-      # - key: VISION_API_KEY
-      #   sync: false
-      # - key: VISION_BASE_URL
-      #   value: https://openrouter.ai/api/v1
-      # ── API behaviour ───────────────────────────────────────────────────
-      # Allow the deployed Next.js frontend (or any origin for now).
-      - key: CORS_ORIGINS
-        value: "*"
-      # Serve the legacy vanilla-JS UI at the API root as a stopgap.
-      - key: SERVE_FRONTEND
-        value: "1"
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: OPENAI_MODEL
+        value: google/gemma-4-26b-a4b-it:free
+      - key: OPENAI_VISION_MODEL
+        value: google/gemma-4-26b-a4b-it:free
+
+  - type: web
+    name: multimodal-tutor-web
+    runtime: node
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: multimodal-tutor-api
+          envVarKey: RENDER_EXTERNAL_URL

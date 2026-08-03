@@ -1,5 +1,5 @@
 {
-  "interaction_count": 136,
+  "interaction_count": 146,
   "flashcards": [
     {
       "front": "Photosynthesis",
@@ -20,23 +20,35 @@
     {
       "front": "Multimodal AI",
       "back": "An artificial intelligence system capable of processing and understanding multiple types of input, such as text and images."
+    },
+    {
+      "front": "Session",
+      "back": "A period of time devoted to a specific activity, such as a meeting or a period of study."
+    },
+    {
+      "front": "Concept",
+      "back": "An abstract idea or a general notion that forms the basis of a theory or subject."
+    },
+    {
+      "front": "Topic",
+      "back": "A matter dealt with in a text, discourse, or conversation; the subject of discussion."
     }
   ],
   "topic_stats": {
     "explain": {
-      "questions_asked": 5,
+      "questions_asked": 7,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
     },
     "photosynthesis": {
-      "questions_asked": 4,
+      "questions_asked": 6,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
     },
     "general": {
-      "questions_asked": 92,
+      "questions_asked": 97,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -48,7 +60,7 @@
       "quiz_total": 0
     },
     "what": {
-      "questions_asked": 12,
+      "questions_asked": 13,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -132,7 +144,7 @@
       "quiz_total": 0
     },
     "teach": {
-      "questions_asked": 2,
+      "questions_asked": 3,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -240,7 +252,7 @@
       "quiz_total": 0
     },
     "mitochondria": {
-      "questions_asked": 1,
+      "questions_asked": 2,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -270,6 +282,12 @@
       "quiz_total": 0
     },
     "julie": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "thank": {
       "questions_asked": 1,
       "quiz_attempts": 0,
       "quiz_correct": 0,

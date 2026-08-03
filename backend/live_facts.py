@@ -91,8 +91,23 @@ def fetch_live_fact(question: str) -> Optional[str]:
                     f"Search results for '{question}':\n{snippets}\n"
                     "--- End of web search results ---"
                 )
+            else:
+                print("[LiveFacts] Search returned no results.")
     except Exception as e:
         print(f"[LiveFacts] DuckDuckGo search failed: {e}")
+
+    # If live search is unavailable, return an explicit "no live data" marker
+    # so the tutor engine can tell the LLM to be honest about its knowledge
+    # cutoff instead of silently answering with stale training data.
+    if not fact:
+        fact = (
+            "LIVE FACT LOOKUP UNAVAILABLE (no web search results could be fetched).\n"
+            "If this question is about recent events, current officeholders, or anything "
+            "that may have changed since your training data, you MUST clearly state that "
+            "your information may be out of date, give the most recent information you "
+            "have with its date/year, and encourage the user to verify with a current source. "
+            "Do NOT state a current fact with false confidence if you are not sure it is still true."
+        )
 
     # Save to cache even if None (to prevent hammering API on repeated failures)
     with _cache_lock:
@@ -104,4 +119,3 @@ def fetch_live_fact(question: str) -> Optional[str]:
 def detect_time_sensitive(question: str) -> bool:
     """Public helper so the tutor engine can bypass the answer cache."""
     return _is_time_sensitive(question)
-
