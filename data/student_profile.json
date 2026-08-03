@@ -1,5 +1,5 @@
 {
-  "interaction_count": 114,
+  "interaction_count": 130,
   "flashcards": [
     {
       "front": "Photosynthesis",
@@ -36,7 +36,7 @@
       "quiz_total": 0
     },
     "general": {
-      "questions_asked": 76,
+      "questions_asked": 86,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -48,7 +48,7 @@
       "quiz_total": 0
     },
     "what": {
-      "questions_asked": 10,
+      "questions_asked": 12,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -132,7 +132,7 @@
       "quiz_total": 0
     },
     "teach": {
-      "questions_asked": 1,
+      "questions_asked": 2,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -240,6 +240,36 @@
       "quiz_total": 0
     },
     "mitochondria": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "machine": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "algebra": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "algebra mastery": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "during": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "julie": {
       "questions_asked": 1,
       "quiz_attempts": 0,
       "quiz_correct": 0,

@@ -19,28 +19,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from backend.llm_client import get_client
 from backend.cache import get_cached_quiz, set_cached_quiz
 
-QUIZ_SYSTEM_PROMPT = """You generate quiz questions. Output ONLY valid JSON.
-No preamble, no markdown fences, no explanation.
-
-Schema:
-{
-  "topic": "string",
-  "questions": [
-    {
-      "question": "string",
-      "options": ["string", "string", "string", "string"],
-      "correct_index": 0,
-      "explanation": "string"
-    }
-  ]
-}"""
+QUIZ_SYSTEM_PROMPT = """You generate quiz questions. Output ONLY valid JSON. No markdown, no explanation.
+Schema: {"topic":"string","questions":[{"question":"string","options":["A","B","C","D"],"correct_index":0,"explanation":"1 sentence"}]}
+Rules: options max 8 words each, explanation max 15 words, be concise."""
 
 # Per-batch prompt for parallel generation
-BATCH_PROMPT = """Generate {n} multiple-choice questions about: {topic}.
-{difficulty}
-{context}
-Output ONLY the JSON object with a "questions" array.
-Each question must have: question, options (4), correct_index, explanation."""
+BATCH_PROMPT = """Generate {n} MCQ questions about: {topic}. {difficulty}{context}
+Return ONLY JSON with a \"questions\" array. Each item: question, options(4), correct_index, explanation."""
 
 
 def _extract_and_clean_json(text: str) -> str:
@@ -122,21 +107,29 @@ def _generate_batch(
     )
     prompt += f"\n\n(Batch {batch_num}/{total_batches} - generate exactly {n} questions.)"
 
-    try:
-        result = llm.chat(
-            system_prompt=QUIZ_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=256 * n + 128,
-            stream=False,
-        )
-    except Exception as e:
-        raise ValueError(f"Batch {batch_num} failed: {e}") from e
+    max_retries = 2
+    last_err = None
 
-    raw_text = result if isinstance(result, str) else ""
-    if not raw_text:
-        raise ValueError(f"Batch {batch_num}: empty response from LLM")
+    for attempt in range(max_retries):
+        try:
+            result = llm.chat(
+                system_prompt=QUIZ_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=150 * n + 64,
+                stream=False,
+            )
+            raw_text = result if isinstance(result, str) else ""
+            if not raw_text:
+                raise ValueError(f"Batch {batch_num}: empty response from LLM")
+            return _parse_quiz_json(raw_text, f"batch_{batch_num}")
+        except ValueError as e:
+            last_err = e
+            print(f"Batch {batch_num} attempt {attempt + 1} failed: {e}. Retrying...")
+            continue
+        except Exception as e:
+            raise ValueError(f"Batch {batch_num} failed: {e}") from e
 
-    return _parse_quiz_json(raw_text, f"batch_{batch_num}")
+    raise ValueError(f"Batch {batch_num} failed after {max_retries} attempts: {last_err}")
 
 
 def generate_quiz(
@@ -174,11 +167,13 @@ def generate_quiz(
         ]
         context_str = "Base questions on this material:\n" + "\n\n".join(context_lines)
 
-    # Decide strategy: single call vs parallel batches
-    BATCH_SIZE = 4
+    # Parallel batching: split large quizzes into concurrent requests.
+    # BATCH_SIZE=6 means up to 2 parallel requests for a 12-question quiz,
+    # which is fast without hitting rate limits on free-tier APIs.
+    BATCH_SIZE = 6
 
     if num_questions <= BATCH_SIZE:
-        # Single call for small quizzes (<=4 questions)
+        # Single call for small quizzes (<=6 questions)
         llm = get_client()
         prompt = BATCH_PROMPT.format(
             n=num_questions,
@@ -186,21 +181,29 @@ def generate_quiz(
             difficulty=difficulty_prompt,
             context=context_str,
         )
-        try:
-            result = llm.chat(
-                system_prompt=QUIZ_SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=256 * num_questions + 128,
-                stream=False,
-            )
-        except Exception as e:
-            raise ValueError(f"Failed to contact LLM for quiz generation: {e}") from e
-
-        raw_text = result if isinstance(result, str) else ""
-        if not raw_text:
-            raise ValueError("Empty response from LLM")
-
-        questions = _parse_quiz_json(raw_text, "single_batch")
+        max_retries = 2
+        last_err = None
+        for attempt in range(max_retries):
+            try:
+                result = llm.chat(
+                    system_prompt=QUIZ_SYSTEM_PROMPT,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=150 * num_questions + 64,
+                    stream=False,
+                )
+                raw_text = result if isinstance(result, str) else ""
+                if not raw_text:
+                    raise ValueError("Empty response from LLM")
+                questions = _parse_quiz_json(raw_text, "single_batch")
+                break  # Success, exit retry loop
+            except ValueError as e:
+                last_err = e
+                print(f"Single batch attempt {attempt + 1} failed: {e}. Retrying...")
+                continue
+            except Exception as e:
+                raise ValueError(f"Failed to contact LLM for quiz generation: {e}") from e
+        else:
+            raise ValueError(f"Failed to generate quiz after {max_retries} attempts: {last_err}")
     else:
         # Parallel batch generation (up to 4x faster for 8-15 questions)
         num_batches = (num_questions + BATCH_SIZE - 1) // BATCH_SIZE

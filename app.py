@@ -211,6 +211,12 @@ def chat_to_markdown(history: list[dict]) -> str:
 tab_chat, tab_quiz = st.tabs(["Ask the Tutor", "Generate a Quiz"])
 
 with tab_chat:
+    # Declare the clipboard-paste custom component once
+    _paste_component = st.components.v1.declare_component(
+        "paste_image",
+        path=os.path.join(os.path.dirname(__file__), "components", "paste_image"),
+    )
+
     if not st.session_state.chat_history:
         st.markdown(
             "<h1 style='text-align: center; font-size: 2.2rem; margin-top: 0.5rem;'>Multimodal AI Tutor</h1>",
@@ -416,19 +422,57 @@ body{{margin:0;padding:2px 0;background:transparent;font-family:system-ui,sans-s
         uploaded_image = None
         st.rerun()
 
-    question = st.chat_input("Ask your question...")
+    # ── Clipboard paste zone ─────────────────────────────────────────────────
+    pasted_b64 = _paste_component(key="clipboard_paste", default=None)
+    pasted_image_bytes = None
+    pasted_media_type = None
+    if pasted_b64 and isinstance(pasted_b64, str) and pasted_b64.startswith("data:image"):
+        import base64 as _b64
+        # Parse data URL: data:image/png;base64,<data>
+        header, raw = pasted_b64.split(",", 1)
+        pasted_media_type = header.replace("data:", "").replace(";base64", "")
+        pasted_image_bytes = _b64.b64decode(raw)
 
-    if not question and "quick_action_prompt" in st.session_state:
+    prompt_submission = st.chat_input("Ask your question...", accept_file="multiple", file_type=["png", "jpg", "jpeg"])
+    
+    question = ""
+    chat_files = []
+    
+    if prompt_submission:
+        if hasattr(prompt_submission, "text"):
+            question = prompt_submission.text
+            chat_files = prompt_submission.files or []
+        else:
+            question = prompt_submission
+
+    if not question and not chat_files and "quick_action_prompt" in st.session_state:
         question = st.session_state.pop("quick_action_prompt")
 
-    if question:
+    if question or chat_files or pasted_image_bytes:
         api_content: list[dict] = []
         image_bytes = None
         media_type = None
-        if uploaded_image is not None:
+
+        # Priority: 1) clipboard paste, 2) chat input attachment, 3) sidebar upload
+        if pasted_image_bytes:
+            image_bytes = pasted_image_bytes
+            media_type = pasted_media_type or "image/png"
+        else:
+            target_image = None
+            if chat_files:
+                for f in chat_files:
+                    if f.type.startswith("image/"):
+                        target_image = f
+                        break
+            if not target_image:
+                target_image = uploaded_image
+            if target_image is not None:
+                import base64
+                image_bytes = target_image.getvalue()
+                media_type = target_image.type
+
+        if image_bytes:
             import base64
-            image_bytes = uploaded_image.getvalue()
-            media_type = uploaded_image.type
             api_content.append({
                 "type": "image",
                 "source": {
@@ -437,17 +481,30 @@ body{{margin:0;padding:2px 0;background:transparent;font-family:system-ui,sans-s
                     "data": base64.b64encode(image_bytes).decode("utf-8"),
                 },
             })
-        api_content.append({"type": "text", "text": question})
+            
+        if question:
+            api_content.append({"type": "text", "text": question})
+
+        display_text = question if question else "(Sent an image)"
 
         st.session_state.chat_history.append(
             {
                 "role": "user",
-                "content_display": question,
+                "content_display": display_text,
                 "api_content": api_content,
             }
         )
         with st.chat_message("user"):
-            st.markdown(question)
+            st.markdown(display_text)
+            if pasted_image_bytes:
+                import io
+                from PIL import Image as _PILImage
+                st.image(_PILImage.open(io.BytesIO(pasted_image_bytes)), width=300)
+            elif chat_files:
+                for f in chat_files:
+                    if f.type.startswith("image/"):
+                        st.image(f, width=300)
+                        break
 
         context_chunks = None
         if not st.session_state.material_store.is_empty():
@@ -559,13 +616,17 @@ with tab_quiz:
 
     user_answers = {}
     for i, q in enumerate(quiz["questions"]):
-        st.markdown(f"**{i + 1}. {q['question']}**")
-        user_answers[i] = st.pills(
-            label=f"Options for Q{i + 1}",
-            options=q["options"],
-            key=f"quiz_q_pills_{i}",
-            label_visibility="collapsed",
-        )
+        with st.container(border=True):
+            st.markdown(f"**{i + 1}.** {q['question']}")
+            options = q["options"]
+            user_answers[i] = st.radio(
+                label=f"Options for Q{i + 1}",
+                options=options,
+                key=f"quiz_q_{i}",
+                label_visibility="collapsed",
+                format_func=lambda opt: opt,
+                index=None,
+            )
 
     answered_count = sum(1 for v in user_answers.values() if v is not None)
     st.progress(answered_count / n_questions, text=f"{answered_count}/{n_questions} answered")
@@ -576,6 +637,8 @@ with tab_quiz:
     with col_reset:
         if st.button("Try Again", type="secondary"):
             st.session_state["current_quiz"] = None
+            for i in range(n_questions):
+                st.session_state.pop(f"quiz_q_{i}", None)
             st.rerun()
 
     if submitted or st.session_state.get("quiz_submitted"):
@@ -606,18 +669,9 @@ with tab_quiz:
             correct_option = q["options"][q["correct_index"]]
             selected = user_answers.get(i)
             with st.container():
-                cols = st.columns([1, 20])
                 if selected == correct_option:
-                    cols[0].markdown("Correct")
-                    with cols[1]:
-                        st.success(f"**Q{i + 1}: {q['question']}**")
-                        st.caption(f"Correct! {q['explanation']}")
+                    st.success(f"✅ **Q{i + 1}:** {q['question']}  \n**Your answer:** {selected}  \n💡 {q['explanation']}")
                 else:
-                    cols[0].markdown("Incorrect")
-                    with cols[1]:
-                        st.error(f"**Q{i + 1}: {q['question']}**")
-                        st.caption(f"Your answer: {selected or '(none selected)'}")
-                        st.caption(f"Correct answer: **{correct_option}**")
-                        st.caption(f"{q['explanation']}")
+                    st.error(f"❌ **Q{i + 1}:** {q['question']}")
+                    st.markdown(f"**Your answer:** {selected or '*(none selected)*'}  \n**✅ Correct answer:** {correct_option}  \n💡 {q['explanation']}")
                 st.divider()
-

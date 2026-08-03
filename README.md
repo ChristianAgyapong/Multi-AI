@@ -42,7 +42,7 @@ multimodal-edu-tutor/
 ```bash
 cd multimodal-edu-tutor
 python3 -m venv venv
-source venv/bin/activate          # Windows: venv\Scripts\activate
+source venv/Scripts/activate          # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env              # then edit .env and configure your provider
 ```

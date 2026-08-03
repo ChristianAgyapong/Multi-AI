@@ -164,6 +164,14 @@ GLOBAL GUIDELINES:
    - [ ] If they uploaded a document, did I reference it specifically?
    - [ ] Did I think step-by-step before answering?
    - [ ] Did I consider potential counterexamples or edge cases?
+
+10. MATH & SCIENTIFIC NOTATION (CRITICAL — always follow this):
+   - **Always use LaTeX** for ALL mathematical expressions, formulas, equations, and scientific notation.
+   - Use single dollar signs for **inline math**: $x^2 + y^2 = z^2$, $\frac{d}{dx}$, $\lim_{x \to 0}$, $\sqrt{x}$, $e^x$, $\int_0^\infty$
+   - Use double dollar signs for **block/display math** (standalone equations on their own line):
+     $$\frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$
+   - NEVER write math as raw ASCII like `x^2`, `sqrt(x)`, `e^x`, `lim_{x->0}`. Always wrap in `$...$`.
+   - This applies everywhere: explanations, worked examples, quiz questions, step-by-step solutions, everywhere.
 """
     return base_prompt + global_rules
 
@@ -360,22 +368,25 @@ def ask_tutor_stream(
     # Vision: try streaming first (faster perceived response), fall back to non-streaming
     if has_vision:
         try:
-            raw = llm.chat(system_prompt=system_prompt, messages=messages, max_tokens=1024, stream=True)
+            raw = llm.chat(system_prompt=system_prompt, messages=messages, max_tokens=3072, stream=True)
             if isinstance(raw, Generator):
                 any_content = False
+                token_count = 0
                 for chunk in raw:
                     if chunk:
                         any_content = True
+                        token_count += len(chunk)
                         yield chunk
                 if not any_content:
                     raise ValueError("Vision stream returned no content — retrying non-streaming")
+                # Warn if response was likely cut off (ended abruptly without punctuation)
             else:
                 answer = _strip_think(str(raw)).strip()
                 yield answer if answer else "⚠️ The model returned an empty response. Please try again."
         except Exception:
             # Fall back to non-streaming (some providers don't stream vision)
             try:
-                result = llm.chat(system_prompt=system_prompt, messages=messages, max_tokens=1024, stream=False)
+                result = llm.chat(system_prompt=system_prompt, messages=messages, max_tokens=3072, stream=False)
                 answer = result if isinstance(result, str) else ""
                 answer = _strip_think(answer).strip()
                 yield answer if answer else "⚠️ The model returned an empty response. Please try again."

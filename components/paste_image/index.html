@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: transparent;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    #zone {
+      border: 2px dashed #4b5563;
+      border-radius: 10px;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #9ca3af;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: rgba(255,255,255,0.02);
+      min-height: 48px;
+      user-select: none;
+    }
+    #zone:hover { border-color: #6366f1; color: #c7d2fe; background: rgba(99,102,241,0.06); }
+    #zone.active { border-color: #22c55e; color: #86efac; background: rgba(34,197,94,0.06); }
+    #zone.drag { border-color: #6366f1; color: #a5b4fc; background: rgba(99,102,241,0.1); }
+    .icon { font-size: 1.4rem; flex-shrink: 0; }
+    .label { flex: 1; line-height: 1.4; }
+    .label strong { color: #e5e7eb; }
+    #thumb {
+      width: 40px; height: 40px;
+      object-fit: cover;
+      border-radius: 6px;
+      display: none;
+      border: 1px solid #374151;
+    }
+    #clear {
+      background: none; border: 1px solid #6b7280;
+      color: #9ca3af; border-radius: 5px;
+      padding: 3px 8px; font-size: 0.75rem;
+      cursor: pointer; display: none;
+      transition: all 0.2s;
+    }
+    #clear:hover { border-color: #ef4444; color: #f87171; }
+  </style>
+</head>
+<body>
+  <div id="zone" tabindex="0" title="Click here then press Ctrl+V to paste a screenshot">
+    <span class="icon">📋</span>
+    <span class="label" id="label">Click here then press <strong>Ctrl+V</strong> to paste a screenshot or image</span>
+    <img id="thumb" alt="preview">
+    <button id="clear" onclick="clearImage(event)">✕ Clear</button>
+  </div>
+
+  <script>
+    var currentData = null;
+
+    // ── Streamlit Component Protocol ──────────────────────────────────────────
+    function sendReady() {
+      window.parent.postMessage({ isStreamlitMessage: true, type: "streamlit:componentReady", apiVersion: 1 }, "*");
+    }
+    function sendValue(val) {
+      window.parent.postMessage({ isStreamlitMessage: true, type: "streamlit:setComponentValue", value: val }, "*");
+    }
+    window.addEventListener("message", function(e) {
+      if (e.data && e.data.type === "streamlit:render") {
+        // Component rendered — send current value back so it isn't lost on rerun
+        if (currentData) sendValue(currentData);
+      }
+    });
+    sendReady();
+
+    // ── Image Handling ────────────────────────────────────────────────────────
+    function handleFile(file) {
+      if (!file || !file.type.startsWith("image/")) return;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        currentData = e.target.result; // data:image/png;base64,...
+        var thumb = document.getElementById("thumb");
+        var label = document.getElementById("label");
+        var clear = document.getElementById("clear");
+        var zone  = document.getElementById("zone");
+        thumb.src = currentData;
+        thumb.style.display = "block";
+        clear.style.display = "inline-block";
+        label.innerHTML = "<strong>Image ready!</strong> Type your question above and press Enter";
+        zone.classList.add("active");
+        sendValue(currentData);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearImage(e) {
+      e.stopPropagation();
+      currentData = null;
+      var thumb = document.getElementById("thumb");
+      var label = document.getElementById("label");
+      var clear = document.getElementById("clear");
+      var zone  = document.getElementById("zone");
+      thumb.style.display = "none";
+      clear.style.display = "none";
+      label.innerHTML = "Click here then press <strong>Ctrl+V</strong> to paste a screenshot or image";
+      zone.classList.remove("active");
+      sendValue(null);
+    }
+
+    // ── Paste Events ──────────────────────────────────────────────────────────
+    function handlePaste(e) {
+      var items = (e.clipboardData || e.originalEvent.clipboardData).items;
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith("image/")) {
+          e.preventDefault();
+          handleFile(items[i].getAsFile());
+          return;
+        }
+      }
+    }
+    // Focused zone paste
+    document.getElementById("zone").addEventListener("paste", handlePaste);
+    // Global paste (catches Ctrl+V anywhere on the page)
+    document.addEventListener("paste", handlePaste);
+    // Also focus zone when clicked so Ctrl+V is captured
+    document.getElementById("zone").addEventListener("click", function() { this.focus(); });
+
+    // ── Drag and Drop ─────────────────────────────────────────────────────────
+    var zone = document.getElementById("zone");
+    zone.addEventListener("dragover", function(e) { e.preventDefault(); zone.classList.add("drag"); });
+    zone.addEventListener("dragleave", function() { zone.classList.remove("drag"); });
+    zone.addEventListener("drop", function(e) {
+      e.preventDefault();
+      zone.classList.remove("drag");
+      var file = e.dataTransfer.files[0];
+      handleFile(file);
+    });
+  </script>
+</body>
+</html>
