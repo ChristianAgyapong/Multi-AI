@@ -203,7 +203,7 @@ body: JSON.stringify({
           }
         }
       }
-    } catch (err: unknown) {
+    } catch (err) {
       // If the user pressed Stop, keep the partial response silently.
       if (err instanceof DOMException && err.name === "AbortError") return;
       const errorMessage = err instanceof Error ? err.message : String(err);
