@@ -600,8 +600,8 @@ body {
 /* Prose invert for markdown in dark theme */
 .prose-invert {
   color: var(--text-main);
-  font-size: 0.95rem;
-  line-height: 1.55;
+  font-size: 1rem;
+  line-height: 1.6;
 }
 
 .prose-invert h1,
