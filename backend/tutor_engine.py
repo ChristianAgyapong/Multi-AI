@@ -442,13 +442,14 @@ def transcribe_audio(audio_bytes: bytes) -> str:
 # Debate Mode: Dual-Agent (Feynman Technique)
 
 FELLOW_STUDENT_PROMPT = """You are a Fellow Student studying the same topic as the user.
-You are enthusiastic but you have made a COMMON MISCONCEPTION about this topic.
+You are enthusiastic but you hold COMMON MISCONCEPTIONS about this topic.
 Your role is to state your (incorrect) understanding confidently, so the user can correct you.
 
 Rules:
-- State ONE specific, believable misconception about the topic. Keep it to 2-3 sentences.
+- State ONE specific, believable misconception per turn. Keep it to 2-3 sentences.
 - Do NOT reveal that you are wrong. Act like you genuinely believe your answer.
 - Your mistake should be a common one students actually make (not obvious nonsense).
+- If the user just corrected you, briefly acknowledge their point while staying in character, then smoothly introduce a NEW misconception on the same topic. Do not repeat the same misconception.
 - End with a short question inviting the student to agree or share their view.
 - Do NOT ask multiple questions.
 """
@@ -461,9 +462,23 @@ Rules:
 - In 2-3 sentences, confirm what the student got RIGHT.
 - In 1-2 sentences, gently correct anything the student missed or got wrong.
 - Give a grade out of 10 for accuracy and clarity.
-- End with the NEXT misconception to debate, formatted as:
+- At the very end, on its own line, provide the NEXT misconception to debate formatted exactly as:
 [NEXT_MISCONCEPTION]: <Your new incorrect statement about the same topic>
 """
+
+
+def _extract_next_misconception(tutor_response: str) -> tuple[str, str]:
+    """Return (display_response, next_misconception)."""
+    next_misconception = ""
+    display_lines = []
+    marker = "[NEXT_MISCONCEPTION]:"
+    for line in tutor_response.split("\n"):
+        if line.strip().startswith(marker):
+            next_misconception = line.split(":", 1)[1].strip()
+        else:
+            display_lines.append(line)
+    display_response = "\n".join(display_lines).strip()
+    return display_response, next_misconception
 
 
 def run_debate_round(
@@ -474,66 +489,71 @@ def run_debate_round(
     student_model_summary: str = "",
 ) -> dict:
     """
-    Runs one round of the debate:
-    1. Fellow Student states/continues its misconception.
-    2. (If student replied) Tutor Grader evaluates the student's correction.
+    Runs one round of the debate.
+    First round: returns a Fellow Student misconception.
+    Later rounds: returns the Tutor's grading and a new Fellow Student reply.
     Returns: { 'fellow': str, 'tutor': str | None }
     """
     llm = get_client()
-
-    if not fellow_student_history:
-        fellow_msgs = [{"role": "user", "content": f"Let's talk about: {topic}. What do you know about it?"}]
-    else:
-        fellow_msgs = list(fellow_student_history)
 
     student_model_context = ""
     if student_model_summary:
         student_model_context = f"\nStudent background: {student_model_summary}"
 
-    if not student_correction and not fellow_student_history:
-        # First round: Fellow Student states a misconception
-        fellow_msgs.append({
-            "role": "user",
-            "content": f"Share what you know about {topic}.{student_model_context}"
-        })
+    # First round: generate Fellow Student's opening misconception.
+    if not student_correction:
+        fellow_msgs = list(fellow_student_history) if fellow_student_history else []
+        if not fellow_msgs or fellow_msgs[-1].get("role") != "user":
+            fellow_msgs.append({
+                "role": "user",
+                "content": f"Share what you know about {topic}.{student_model_context}"
+            })
         fellow_response = llm.chat(
             system_prompt=FELLOW_STUDENT_PROMPT + student_model_context,
             messages=fellow_msgs,
             max_tokens=512,
-            stream=False
+            stream=False,
+            temperature=0.7,
         )
         return {"fellow": fellow_response, "tutor": None}
 
-    # Student has responded — grade it
+    # Tutor grades the student's correction.
     tutor_msgs = list(tutor_history) if tutor_history else []
-    tutor_msgs.append({
-        "role": "user",
-        "content": f"The student was asked to correct a misconception about '{topic}'.\n\nStudent's correction:\n{student_correction}"
-    })
-    tutor_response = llm.chat(
+    # Avoid duplicating the current correction if the frontend already included it.
+    if not tutor_msgs or tutor_msgs[-1].get("content") != student_correction:
+        tutor_msgs.append({
+            "role": "user",
+            "content": f"The student was asked to correct a misconception about '{topic}'.\n\nStudent's correction:\n{student_correction}",
+        })
+
+    tutor_response_raw = llm.chat(
         system_prompt=TUTOR_GRADER_PROMPT + student_model_context,
         messages=tutor_msgs,
         max_tokens=512,
-        stream=False
+        stream=False,
+        temperature=0.5,
     )
+    tutor_response, next_misconception = _extract_next_misconception(tutor_response_raw)
 
-    # Extract next misconception from tutor response
-    next_misconception = ""
-    for line in tutor_response.split("\n"):
-        if line.startswith("[NEXT_MISCONCEPTION]:"):
-            next_misconception = line.split(":", 1)[1].strip()
-            break
+    # Fellow Student replies to the user's correction.
+    fellow_msgs = list(fellow_student_history) if fellow_student_history else []
+    # The history already contains the user's correction as the last user message.
+    # If it's empty, add the correction so the LLM has a prompt to respond to.
+    if not fellow_msgs:
+        fellow_msgs.append({"role": "user", "content": student_correction})
 
-    # Fellow Student states next misconception
-    fellow_msgs.append({"role": "user", "content": f"The student responded. Now share another misconception about {topic}."})
+    fellow_system = FELLOW_STUDENT_PROMPT + student_model_context
     if next_misconception:
-        fellow_msgs.append({"role": "user", "content": f"Consider this point: {next_misconception}"})
+        fellow_system += (
+            f"\n\nFor this turn, naturally bring up a new wrong point related to: {next_misconception}"
+        )
 
     fellow_response = llm.chat(
-        system_prompt=FELLOW_STUDENT_PROMPT,
+        system_prompt=fellow_system,
         messages=fellow_msgs,
         max_tokens=512,
-        stream=False
+        stream=False,
+        temperature=0.7,
     )
 
     return {"fellow": fellow_response, "tutor": tutor_response}

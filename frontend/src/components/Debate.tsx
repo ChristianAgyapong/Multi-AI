@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Users, Send, RefreshCw, Trash2, Bot, GraduationCap, Sparkles } from "lucide-react";
+import { Users, Send, RefreshCw, Trash2, Bot, GraduationCap, Sparkles, Square } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
@@ -36,6 +36,7 @@ export default function Debate() {
   const [sessionActive, setSessionActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -46,7 +47,9 @@ export default function Debate() {
   }, [messages, loading]);
 
   const startDebate = async () => {
-    if (!topic.trim()) return;
+    if (!topic.trim() || loading) return;
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
     setError(null);
     setLoading(true);
     setMessages([]);
@@ -56,20 +59,32 @@ export default function Debate() {
       const res = await fetch(`${API_BASE}/debate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: abortRef.current.signal,
         body: JSON.stringify({ topic, fellow_student_history: [], tutor_history: [] }),
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || `HTTP ${res.status}`);
+      }
       const data = await res.json();
       if (data.fellow) setMessages([{ role: "fellow", content: data.fellow }]);
-    } catch {
-      setError("Failed to start debate. Is the backend running?");
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      setError(err instanceof Error ? err.message : "Failed to start debate. Is the backend running?");
       setSessionActive(false);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleCancel = () => {
+    abortRef.current?.abort();
+  };
+
   const handleSend = async () => {
     if (!input.trim() || loading) return;
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
     setError(null);
     const studentText = input;
     setInput("");
@@ -90,6 +105,7 @@ export default function Debate() {
       const res = await fetch(`${API_BASE}/debate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: abortRef.current.signal,
         body: JSON.stringify({
           topic,
           student_correction: studentText,
@@ -97,6 +113,10 @@ export default function Debate() {
           tutor_history: tutorHistory,
         }),
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || `HTTP ${res.status}`);
+      }
       const data = await res.json();
 
       setMessages((prev) => {
@@ -105,12 +125,15 @@ export default function Debate() {
         if (data.fellow) updated.push({ role: "fellow", content: data.fellow });
         return updated;
       });
-    } catch {
-      setError("Failed to send message.");
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      setError(err instanceof Error ? err.message : "Failed to send message.");
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => () => { abortRef.current?.abort(); }, []);
 
   const endDebate = () => {
     setSessionActive(false);
@@ -288,18 +311,18 @@ export default function Debate() {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                onKeyDown={(e) => e.key === "Enter" && !loading && handleSend()}
                 placeholder="Correct the fellow student…"
                 disabled={loading}
                 className="input-field flex-1"
               />
               <button
-                onClick={handleSend}
-                disabled={loading || !input.trim()}
+                onClick={loading ? handleCancel : handleSend}
+                disabled={!loading && !input.trim()}
                 className="btn-primary p-2.5 shrink-0"
                 style={{ background: "linear-gradient(135deg, #db2777, #ec4899)" }}
               >
-                {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                {loading ? <Square className="w-4 h-4 fill-current" /> : <Send className="w-4 h-4" />}
               </button>
             </div>
           </div>
