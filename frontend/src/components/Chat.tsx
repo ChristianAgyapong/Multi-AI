@@ -219,7 +219,7 @@ body: JSON.stringify({
 
   return (
     <div className="chat-shell flex flex-col h-full glass-panel relative overflow-hidden" onPaste={handlePaste}>
-      <div className="chat-toolbar shrink-0">
+      <div className={`chat-toolbar shrink-0 ${messages.length === 0 ? "justify-center" : "justify-end"}`}>
           <div className="flex items-center gap-1.5 flex-wrap">
           {MODES.map(({ id, label }) => (
             <button
@@ -253,12 +253,9 @@ body: JSON.stringify({
                 <span className="absolute inset-0 rounded-full animate-ping bg-indigo-500/10" />
               </div>
               <h3 className="gradient-text text-3xl font-semibold text-white">How can I help you learn today?</h3>
-              <p className="max-w-lg text-sm text-gray-400 leading-relaxed">
-                Ask any math, physics, or general subject question. You can also paste screenshots directly into the chat!
-              </p>
 
               {/* Quick-start suggestions */}
-              <div className="chat-empty-suggestions flex flex-wrap justify-center gap-2 max-w-2xl mt-5">
+              <div className="chat-empty-suggestions flex flex-wrap justify-center gap-2 max-w-2xl">
                 {SUGGESTIONS.map((s) => (
                   <button key={s} onClick={() => handleSend(s)} className="suggestion-chip">
                     <Sparkles className="w-3 h-3 shrink-0" />

@@ -110,7 +110,6 @@ body {
 .chat-toolbar {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   gap: 1rem;
   padding: 0.9rem 1rem;
   border-bottom: 1px solid var(--border-color);
