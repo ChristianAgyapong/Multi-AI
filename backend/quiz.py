@@ -19,13 +19,27 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from backend.llm_client import get_client
 from backend.cache import get_cached_quiz, set_cached_quiz
 
-QUIZ_SYSTEM_PROMPT = """You generate quiz questions. Output ONLY valid JSON. No markdown, no explanation.
-Schema: {"topic":"string","questions":[{"question":"string","options":["A","B","C","D"],"correct_index":0,"explanation":"1 sentence"}]}
-Rules: options max 8 words each, explanation max 15 words, be concise."""
+QUIZ_SYSTEM_PROMPT = """You generate quiz questions. Output ONLY valid JSON. No markdown outside the JSON, no extra text.
+
+Schema: {"topic":"string","questions":[{"question":"string","options":["A","B","C","D"],"correct_index":0,"explanation":"string"}]}
+
+Rules for each explanation:
+- Write 2-4 clear sentences that teach the concept behind the correct answer.
+- Explain WHY the correct answer is right and WHY the most tempting wrong option is wrong.
+- Use simple language, a short real-world example when helpful, and avoid repeating the question text.
+- Do not just restate the correct option; explain the idea so the student learns it.
+
+Options: max 10 words each. Keep questions concise but not shallow."""
 
 # Per-batch prompt for parallel generation
 BATCH_PROMPT = """Generate {n} MCQ questions about: {topic}. {difficulty}{context}
-Return ONLY JSON with a \"questions\" array. Each item: question, options(4), correct_index, explanation."""
+
+Requirements:
+- Return ONLY valid JSON with a "questions" array.
+- Each item must have: question, options (4), correct_index, explanation.
+- The explanation must be 2-4 clear sentences that teach the concept, explain why the correct answer is right, and point out why the most tempting wrong answer is wrong. Do not just repeat the question or the correct option.
+- Use simple language and a short real-world example when helpful.
+- Options should be short (max 10 words)."""
 
 
 def _extract_and_clean_json(text: str) -> str:
@@ -110,7 +124,7 @@ def _generate_batch(
     max_retries = 2
     last_err = None
 
-    max_tokens = min(100 * n + 64, 1200)
+    max_tokens = min(160 * n + 120, 1800)
 
     for attempt in range(max_retries):
         try:
@@ -175,8 +189,8 @@ def generate_quiz(
     # which is fast without hitting rate limits on free-tier APIs.
     BATCH_SIZE = 6
 
-    # Tighter token budget: quiz JSON is compact (4 short options + short explanation).
-    max_tokens = min(100 * num_questions + 64, 1200)
+    # Token budget: questions + longer explanations that teach the concept.
+    max_tokens = min(160 * num_questions + 120, 1800)
 
     if num_questions <= BATCH_SIZE:
         # Single call for small quizzes (<=6 questions)

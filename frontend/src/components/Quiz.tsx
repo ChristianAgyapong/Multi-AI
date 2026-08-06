@@ -304,11 +304,25 @@ export default function Quiz() {
                 </div>
 
                 {submitted && (
-                  <div className="prose-invert p-3.5 bg-emerald-950/30 border border-emerald-500/25 rounded-xl text-sm text-emerald-100 leading-relaxed">
-                    <strong className="text-emerald-300">Explanation: </strong>
-                    <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
-                      {q.explanation}
-                    </ReactMarkdown>
+                  <div className={`p-3.5 rounded-xl text-sm leading-relaxed border ${userAnswers[idx] === q.options[q.correct_index] ? "bg-emerald-950/30 border-emerald-500/25 text-emerald-100" : "bg-rose-950/30 border-rose-500/25 text-rose-100"}`}>
+                    <div className="flex items-center gap-2 mb-2 font-medium">
+                      {userAnswers[idx] === q.options[q.correct_index] ? (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                          <span className="text-emerald-300">Correct — here is why</span>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="w-4 h-4 text-rose-400" />
+                          <span className="text-rose-300">Not quite — here is why</span>
+                        </>
+                      )}
+                    </div>
+                    <div className="prose-invert prose-sm">
+                      <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
+                        {q.explanation}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                 )}
               </div>
