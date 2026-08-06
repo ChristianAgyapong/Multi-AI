@@ -318,7 +318,7 @@ body: JSON.stringify({
                       className={`chat-bubble relative transition-all duration-300 ${
                         m.role === "user"
                           ? `${m.image ? "p-4" : "px-4 py-2.5"} shadow-lg backdrop-blur-xl bg-gradient-to-br from-indigo-500/80 to-purple-600/80 border border-indigo-400/40 text-white rounded-2xl rounded-tr-sm`
-                          : "py-2 pr-10 pl-0 bg-transparent border-0 shadow-none text-gray-100 rounded-none"
+                          : "w-full py-2 pr-10 pl-0 bg-transparent border-0 shadow-none text-gray-100 rounded-none text-left"
                       } ${isLastStreaming ? "is-streaming" : ""}`}
                     >
                       {/* Copy button (assistant messages only) */}
