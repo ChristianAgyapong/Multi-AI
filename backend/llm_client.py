@@ -30,14 +30,15 @@ import requests
 # more natural and creative, while structured outputs (quiz JSON) pass ~0.2.
 DEFAULT_TEMPERATURE = float(os.environ.get("LLM_TEMPERATURE", "0.7"))
 
-# Smarter fallback chain for OpenRouter free tier. If the primary model is
-# overloaded, decommissioned, or returns an empty answer, the client will
-# automatically retry with these higher-quality free models in order.
+# Smarter fallback chain for OpenRouter. Free model availability changes, so
+# the first entry is the OpenRouter "free" router which auto-picks an available
+# free model. The rest are known-valid free variants as a safety net.
 OPENROUTER_FALLBACK_MODELS = [
-    "deepseek/deepseek-r1-distill-qwen-32b:free",
-    "qwen/qwen-2.5-72b-instruct:free",
+    "openrouter/free",
     "meta-llama/llama-3.3-70b-instruct:free",
     "google/gemma-4-26b-a4b-it:free",
+    "deepseek/deepseek-chat:free",
+    "qwen/qwen-2.5-72b-instruct:free",
 ]
 
 
@@ -443,8 +444,19 @@ class OpenAIClient(LLMClient):
                 # Auth errors won't be fixed by swapping models — raise immediately
                 if status in (401, 403):
                     raise
+                if status == 404:
+                    # Model not found; keep trying the next fallback.
+                    continue
             except Exception as e:
                 last_err = e
+
+        if isinstance(last_err, requests.HTTPError):
+            status = last_err.response.status_code if last_err.response is not None else 0
+            if status == 404:
+                raise ValueError(
+                    "No valid LLM model was found. If using OpenRouter, set OPENAI_MODEL to a valid "
+                    "model ID such as 'openrouter/free' and ensure OPENAI_BASE_URL is https://openrouter.ai/api/v1."
+                ) from last_err
 
         raise last_err if last_err else ValueError("All models returned empty responses")
 
@@ -591,7 +603,9 @@ def get_client(require_vision: bool = False) -> LLMClient:
         # Attach the smarter fallback chain automatically for OpenRouter users
         is_openrouter = "openrouter.ai" in os.environ.get("OPENAI_BASE_URL", "").lower()
         if is_openrouter:
-            return OpenAIClient(fallback_models=OPENROUTER_FALLBACK_MODELS)
+            # Default to the auto-selecting free router if the user hasn't set a model
+            model = os.environ.get("OPENAI_MODEL") or "openrouter/free"
+            return OpenAIClient(model=model, fallback_models=OPENROUTER_FALLBACK_MODELS)
         return OpenAIClient()
     elif provider == "anthropic":
         return OpenAIClient(
@@ -604,6 +618,11 @@ def get_client(require_vision: bool = False) -> LLMClient:
         if OllamaClient.check_available():
             print("[LLM] Auto-detected Ollama (use LLM_PROVIDER=openai to override).")
             return OllamaClient()
+        is_openrouter = "openrouter.ai" in os.environ.get("OPENAI_BASE_URL", "").lower()
+        if is_openrouter:
+            model = os.environ.get("OPENAI_MODEL") or "openrouter/free"
+            print(f"[LLM] Auto-detected OpenRouter. Using model: {model}")
+            return OpenAIClient(model=model, fallback_models=OPENROUTER_FALLBACK_MODELS)
         print("[LLM] Using OpenAI-compatible client (set LLM_PROVIDER=ollama for local).")
         return OpenAIClient()
 
