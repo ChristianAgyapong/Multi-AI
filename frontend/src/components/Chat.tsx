@@ -310,15 +310,15 @@ body: JSON.stringify({
                   <div
                     className={`flex flex-col ${
                       m.role === "user"
-                        ? "items-end max-w-[80%] md:max-w-[70%]"
-                        : "items-start max-w-[92%] md:max-w-[88%]"
+                        ? "items-end max-w-[85%] md:max-w-[75%]"
+                        : "items-start flex-1 min-w-0 pr-2"
                     }`}
                   >
                     <div
-                      className={`chat-bubble relative shadow-lg backdrop-blur-xl transition-all duration-300 ${
+                      className={`chat-bubble relative transition-all duration-300 ${
                         m.role === "user"
-                          ? `${m.image ? "p-4" : "px-4 py-2.5"} bg-gradient-to-br from-indigo-500/80 to-purple-600/80 border border-indigo-400/40 text-white rounded-2xl rounded-tr-sm`
-                          : "p-3 bg-[#0f172a]/70 border border-white/10 text-gray-100 rounded-2xl rounded-tl-sm"
+                          ? `${m.image ? "p-4" : "px-4 py-2.5"} shadow-lg backdrop-blur-xl bg-gradient-to-br from-indigo-500/80 to-purple-600/80 border border-indigo-400/40 text-white rounded-2xl rounded-tr-sm`
+                          : "py-2 pr-10 pl-0 bg-transparent border-0 shadow-none text-gray-100 rounded-none"
                       } ${isLastStreaming ? "is-streaming" : ""}`}
                     >
                       {/* Copy button (assistant messages only) */}
