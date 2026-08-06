@@ -56,7 +56,7 @@ export default function Home() {
 
   return (
     <>
-      <main className="app-main relative flex h-screen max-w-[1600px] mx-auto gap-2 md:gap-3 p-3 md:p-5 overflow-hidden">
+      <main className="app-main relative flex h-screen w-full gap-2 md:gap-3 overflow-hidden">
         {/* Ambient glow */}
         <div className="glow-bg" style={{ top: "-150px", left: "-150px", opacity: 0.22 }} />
         <div className="glow-bg" style={{ bottom: "-150px", right: "-150px", opacity: 0.15, animationDelay: "5s" }} />
@@ -72,34 +72,29 @@ export default function Home() {
         {/* Main column */}
         <div className="flex-1 min-w-0 z-10 flex flex-col gap-2 md:gap-3">
           {/* Header */}
-          <header className="glass-panel px-4 py-3 md:px-6 md:py-3 flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-4">
+          <header className="bg-transparent border-b border-white/5 px-4 py-2 md:px-6 md:py-2 flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="hidden md:flex p-2.5 rounded-xl text-[var(--text-muted)] hover:text-white hover:bg-white/10 transition-all active:scale-95"
+                className="hidden md:flex p-2 rounded-xl text-[var(--text-muted)] hover:text-white hover:bg-white/10 transition-all active:scale-95"
                 title="Toggle sidebar"
               >
-                {isSidebarOpen ? <PanelLeftClose size={22} /> : <PanelLeftOpen size={22} />}
+                {isSidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
               </button>
 
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center">
-                  <GraduationCap size={22} className="text-indigo-400" />
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center">
+                  <GraduationCap size={18} className="text-indigo-400" />
                 </div>
-                <div>
-                  <h1 className="gradient-text text-base md:text-lg font-bold leading-tight">
-                    Multimodal AI Tutor
-                  </h1>
-                  <p className="text-[0.7rem] text-[var(--text-muted)] mt-0.5 hidden sm:block">
-                    Your personal AI study companion
-                  </p>
-                </div>
+                <h1 className="gradient-text text-sm md:text-base font-semibold leading-tight">
+                  Multimodal AI Tutor
+                </h1>
               </div>
             </div>
 
             {/* Desktop tab bar */}
             <nav
-              className="desktop-tabs flex gap-1 p-1 rounded-xl"
+              className="desktop-tabs flex gap-1 rounded-xl"
               style={{ background: "rgba(15, 23, 42, 0.8)", border: "1px solid var(--border-color)" }}
             >
               {tabs.map(({ id, label, Icon }) => (
