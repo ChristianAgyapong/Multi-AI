@@ -30,6 +30,7 @@ export default function Quiz() {
   const [topic, setTopic] = useState("");
   const [numQuestions, setNumQuestions] = useState(3);
   const [difficulty, setDifficulty] = useState<"easy" | "standard" | "hard">("standard");
+  const [useContext, setUseContext] = useState(false);
   const [loading, setLoading] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
@@ -39,6 +40,10 @@ export default function Quiz() {
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => () => { abortRef.current?.abort(); }, []);
+
+  const handleCancel = () => {
+    abortRef.current?.abort();
+  };
 
   const handleGenerate = async () => {
     if (!topic.trim() || loading) return;
@@ -50,6 +55,13 @@ export default function Quiz() {
     setUserAnswers({});
     setSubmitted(false);
 
+    // Client-side timeout: if the backend takes too long, abort and surface a friendly message.
+    const timeoutId = window.setTimeout(() => {
+      abortRef.current?.abort();
+      setError("Quiz generation is taking too long. Try fewer questions or Basic difficulty.");
+      setLoading(false);
+    }, 35000);
+
     try {
       const res = await fetch(`${API_BASE}/quiz`, {
         method: "POST",
@@ -59,16 +71,22 @@ export default function Quiz() {
           topic: topic.trim(),
           num_questions: numQuestions,
           difficulty,
+          use_context: useContext,
         }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      window.clearTimeout(timeoutId);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || `HTTP ${res.status}`);
+      }
       const data = await res.json();
       setStoredSessionId(data.session_id);
       const quizData = data.quiz ?? data;
       if (quizData.questions) setQuestions(quizData.questions);
     } catch (err) {
+      window.clearTimeout(timeoutId);
       if (err instanceof Error && err.name === "AbortError") return;
-      setError("Failed to generate quiz. Make sure the FastAPI backend is running.");
+      setError(err instanceof Error ? err.message : "Failed to generate quiz. Make sure the FastAPI backend is running.");
     } finally {
       setLoading(false);
     }
@@ -158,6 +176,27 @@ export default function Quiz() {
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <HelpCircle className="w-4 h-4" />}
             {loading ? "Generating…" : "Generate"}
           </button>
+        </div>
+
+        <div className="flex items-center justify-between mt-2">
+          <label className="flex items-center gap-2 text-xs text-[var(--text-muted)] cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={useContext}
+              onChange={(e) => setUseContext(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0"
+            />
+            Use my uploaded study materials
+          </label>
+          {loading && (
+            <button
+              onClick={handleCancel}
+              className="text-xs text-red-300 hover:text-red-200 hover:bg-red-500/10 px-2.5 py-1.5 rounded-lg transition-colors"
+              type="button"
+            >
+              Cancel
+            </button>
+          )}
         </div>
 
         {questions.length === 0 && !loading && (
