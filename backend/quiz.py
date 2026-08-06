@@ -50,6 +50,7 @@ def _extract_and_clean_json(text: str) -> str:
     - Reasoning/thinking blocks
     - Markdown code fences (```json ... ```)
     - Preamble text before/after
+    - Curly braces inside string values
     """
     text = text.strip()
 
@@ -60,14 +61,27 @@ def _extract_and_clean_json(text: str) -> str:
     text = re.sub(r'```(?:json)?\s*', '', text)
     text = re.sub(r'\s*```', '', text)
 
-    # Find the LAST complete balanced JSON object using brace-depth tracking
-    # This correctly handles multiple JSON blocks (drafts, thinking, final)
+    # Find the LAST complete balanced JSON object, being careful to ignore
+    # braces that appear inside quoted strings.
     brace_depth = 0
     last_json_start = -1
     last_json_end = -1
+    in_string = False
+    escaped = False
 
     for i, ch in enumerate(text):
-        if ch == '{':
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == '\\':
+                escaped = True
+            elif ch == '"':
+                in_string = False
+            continue
+
+        if ch == '"':
+            in_string = True
+        elif ch == '{':
             if brace_depth == 0:
                 last_json_start = i
             brace_depth += 1
