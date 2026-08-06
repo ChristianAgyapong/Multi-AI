@@ -147,15 +147,19 @@ export default function Quiz() {
             className="input-field quiz-topic-input"
           />
 
-          <select
+          <input
+            type="number"
+            min={1}
+            max={25}
             value={numQuestions}
-            onChange={(e) => setNumQuestions(Number(e.target.value))}
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10);
+              setNumQuestions(Number.isNaN(val) ? 1 : Math.max(1, Math.min(25, val)));
+            }}
+            placeholder="Questions"
             className="input-field quiz-select"
-          >
-            <option value={3}>3 Questions</option>
-            <option value={5}>5 Questions</option>
-            <option value={10}>10 Questions</option>
-          </select>
+            aria-label="Number of questions"
+          />
 
           <select
             value={difficulty}

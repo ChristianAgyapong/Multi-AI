@@ -26,7 +26,7 @@ from fastapi import FastAPI, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.cache import get_cache_stats
 from backend.quiz import generate_quiz
@@ -130,7 +130,7 @@ class AskRequest(BaseModel):
 
 class QuizRequest(BaseModel):
     topic: str
-    num_questions: int = 5
+    num_questions: int = Field(default=5, ge=1, le=25)
     use_context: bool = True
     session_id: str | None = None
     difficulty: str | None = None
