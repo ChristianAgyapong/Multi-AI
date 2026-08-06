@@ -236,9 +236,7 @@ body {
 }
 
 .quiz-controls {
-  padding: 0.7rem 0.95rem 0.55rem;
-  border-bottom: 1px solid var(--border-color);
-  background: rgba(11, 15, 25, 0.5);
+  background: transparent;
 }
 
 .quiz-controls-grid {
@@ -268,15 +266,7 @@ body {
 }
 
 .quiz-content {
-  background: radial-gradient(ellipse at top, rgba(16, 185, 129, 0.05), transparent 58%);
-}
-
-.quiz-content > .quiz-card {
-  margin-bottom: 0.4rem;
-}
-
-.quiz-content > .quiz-result {
-  margin-top: 0.4rem;
+  background: transparent;
 }
 
 .quiz-empty,
@@ -285,13 +275,11 @@ body {
 }
 
 .quiz-card {
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.78), rgba(15, 23, 42, 0.56));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   position: relative;
   overflow: hidden;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.03),
-    0 10px 26px rgba(0, 0, 0, 0.16);
+  border-radius: 1rem;
 }
 
 .quiz-card::before {
@@ -354,11 +342,7 @@ body {
 }
 
 .quiz-options {
-  max-width: 64rem;
-}
-
-.quiz-options > button {
-  min-height: 2.85rem;
+  width: 100%;
 }
 
 .quiz-submit-btn,
@@ -369,9 +353,8 @@ body {
 .quiz-result {
   padding: 0.95rem;
   border-radius: 1.1rem;
-  background: linear-gradient(180deg, rgba(6, 78, 59, 0.28), rgba(6, 78, 59, 0.16));
+  background: rgba(15, 23, 42, 0.45);
   border: 1px solid rgba(16, 185, 129, 0.22);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .quiz-result-grid {

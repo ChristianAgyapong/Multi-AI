@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
@@ -28,16 +28,21 @@ const TOPIC_SUGGESTIONS = [
 
 export default function Quiz() {
   const [topic, setTopic] = useState("");
-  const [numQuestions, setNumQuestions] = useState(5);
+  const [numQuestions, setNumQuestions] = useState(3);
   const [loading, setLoading] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => { abortRef.current?.abort(); }, []);
 
   const handleGenerate = async () => {
-    if (!topic.trim()) return;
+    if (!topic.trim() || loading) return;
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
     setError(null);
     setLoading(true);
     setQuestions([]);
@@ -48,42 +53,43 @@ export default function Quiz() {
       const res = await fetch(`${API_BASE}/quiz`, {
         method: "POST",
         headers: withSessionHeaders({ "Content-Type": "application/json" }),
+        signal: abortRef.current.signal,
         body: JSON.stringify({
-          topic,
-          text_content: topic,
+          topic: topic.trim(),
           num_questions: numQuestions,
           difficulty: "Medium",
         }),
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setStoredSessionId(data.session_id);
       const quizData = data.quiz ?? data;
       if (quizData.questions) setQuestions(quizData.questions);
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
       setError("Failed to generate quiz. Make sure the FastAPI backend is running.");
     } finally {
       setLoading(false);
     }
   };
 
-const calculateScore = () => {
-    let score = 0;
+  const answeredCount = useMemo(() => Object.keys(userAnswers).length, [userAnswers]);
+  const progressPct = useMemo(() => (questions.length > 0 ? (answeredCount / questions.length) * 100 : 0), [answeredCount, questions.length]);
+  const score = useMemo(() => {
+    let s = 0;
     questions.forEach((q, idx) => {
-      if (userAnswers[idx] === q.options[q.correct_index]) score += 1;
+      if (userAnswers[idx] === q.options[q.correct_index]) s += 1;
     });
-    return score;
-  };
+    return s;
+  }, [questions, userAnswers]);
+  const scorePct = useMemo(() => (questions.length > 0 ? (score / questions.length) * 100 : 0), [score, questions.length]);
 
-  const answeredCount = Object.keys(userAnswers).length;
-  const progressPct = questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
-  const score = calculateScore();
-  const scorePct = questions.length > 0 ? (score / questions.length) * 100 : 0;
-
-  const scoreMessage =
+  const scoreMessage = useMemo(() =>
     scorePct === 100 ? "Perfect score! You've mastered this topic." :
     scorePct >= 80 ? "Great job! Keep reviewing the tricky ones." :
     scorePct >= 60 ? "Good effort — review the explanations below." :
-    "Keep studying — use Chat to go deeper on weak areas.";
+    "Keep studying — use Chat to go deeper on weak areas.",
+  [scorePct]);
 
   useEffect(() => {
     if (questions.length > 0) {
@@ -92,32 +98,26 @@ const calculateScore = () => {
   }, [questions]);
 
   return (
-    <div className="quiz-shell flex flex-col h-full glass-panel overflow-hidden">
-      <div className="quiz-header shrink-0">
-        <div className="flex items-start gap-3 min-w-0">
-          <div className="quiz-icon-wrap">
-            <HelpCircle className="w-5 h-5 text-emerald-300" />
+    <div className="quiz-shell flex flex-col h-full overflow-hidden">
+      <div className="quiz-top-bar shrink-0 flex items-center justify-between px-4 py-2 border-b border-white/5">
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+            <HelpCircle className="w-4 h-4 text-emerald-300" />
           </div>
-          <div className="min-w-0">
-            <h2 className="quiz-title">Quiz Generator</h2>
-            <p className="quiz-subtitle">Practice and test what you know</p>
-          </div>
+          <h2 className="text-sm md:text-base font-semibold text-white">Quiz Generator</h2>
         </div>
-
-        <div className="quiz-header-meta">
-          <div className="quiz-meta-chip">
-            <span className="quiz-meta-label">Topic</span>
-            <span className="quiz-meta-value truncate">{topic.trim() || "Not set"}</span>
-          </div>
-          <div className="quiz-meta-chip">
-            <span className="quiz-meta-label">Questions</span>
-            <span className="quiz-meta-value">{numQuestions}</span>
-          </div>
-        </div>
+        {questions.length > 0 && (
+          <button
+            onClick={() => { setQuestions([]); setUserAnswers({}); setSubmitted(false); setTopic(""); setError(null); }}
+            className="text-xs text-emerald-300 hover:text-emerald-200 hover:bg-emerald-500/10 px-2.5 py-1.5 rounded-lg transition-colors"
+          >
+            New quiz
+          </button>
+        )}
       </div>
 
       {/* Controls */}
-      <div className="quiz-controls shrink-0">
+      <div className="quiz-controls shrink-0 px-4 py-3 border-b border-white/5 bg-transparent">
         <div className="quiz-controls-grid">
           <input
             type="text"
@@ -145,12 +145,12 @@ const calculateScore = () => {
             style={{ background: "linear-gradient(135deg, #059669, #10b981)" }}
           >
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <HelpCircle className="w-4 h-4" />}
-            {loading ? "Generating…" : "Generate Quiz"}
+            {loading ? "Generating…" : "Generate"}
           </button>
         </div>
 
         {questions.length === 0 && !loading && (
-          <div className="quiz-suggestions flex flex-wrap gap-2 mt-4">
+          <div className="quiz-suggestions flex flex-wrap gap-2 mt-3">
             {TOPIC_SUGGESTIONS.map((s) => (
               <button key={s} onClick={() => setTopic(s)} className="suggestion-chip text-[0.75rem] py-1.5">
                 <Sparkles className="w-3 h-3" />
@@ -161,7 +161,7 @@ const calculateScore = () => {
         )}
 
         {questions.length > 0 && !submitted && (
-          <div className="quiz-progress mt-4">
+          <div className="quiz-progress mt-3">
             <div className="flex justify-between text-xs text-[var(--text-muted)] mb-1.5">
               <span>{answeredCount} of {questions.length} answered</span>
               <span>{Math.round(progressPct)}%</span>
@@ -173,143 +173,149 @@ const calculateScore = () => {
         )}
 
         {error && (
-          <div className="mt-4 px-4 py-2.5 rounded-xl text-xs font-medium text-red-200 bg-red-500/10 border border-red-500/20">
+          <div className="mt-3 px-4 py-2.5 rounded-xl text-xs font-medium text-red-200 bg-red-500/10 border border-red-500/20">
             {error}
           </div>
         )}
       </div>
 
       {/* Content */}
-      <div ref={contentRef} className="quiz-content flex-1 overflow-y-auto px-5 py-4 space-y-6">
+      <div ref={contentRef} className="quiz-content flex-1 overflow-y-auto">
         {questions.length === 0 && !loading && (
-          <div className="quiz-empty empty-state h-full">
+          <div className="h-full flex flex-col items-center justify-center text-center px-4 text-gray-400 gap-3">
             <div className="empty-state-icon">
               <HelpCircle className="w-8 h-8 text-emerald-400" />
             </div>
             <h3 className="text-lg font-semibold text-white">Ready to test yourself?</h3>
             <p className="text-sm text-[var(--text-muted)] max-w-sm">
-              Enter any topic above and get instant AI-generated practice questions with detailed explanations.
+              Enter any topic above and get AI-generated practice questions with explanations.
             </p>
           </div>
         )}
 
         {loading && (
-          <div className="quiz-loading empty-state h-full">
+          <div className="h-full flex flex-col items-center justify-center text-center px-4 text-gray-400 gap-3">
             <RefreshCw className="w-10 h-10 animate-spin text-emerald-400" />
             <p className="text-sm text-[var(--text-muted)]">Crafting your quiz questions…</p>
           </div>
         )}
 
-        {questions.map((q, idx) => (
-          <div
-            key={idx}
-            className="quiz-card bg-slate-800/30 border border-[var(--border-color)] rounded-2xl p-5 space-y-4 animate-fade-in-up"
-            style={{ animationDelay: `${idx * 0.06}s` }}
-          >
-            <div className="quiz-card-head">
-              <div className="quiz-card-kicker">
-                <span className="quiz-card-kicker-index">Question {idx + 1}</span>
-                <span className="quiz-card-kicker-type">Multiple choice</span>
+        {questions.length > 0 && (
+          <div className="max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto px-4 py-4 space-y-4">
+            {questions.map((q, idx) => (
+              <div
+                key={idx}
+                className="quiz-card rounded-2xl p-4 space-y-3 animate-fade-in-up"
+                style={{ animationDelay: `${idx * 0.06}s` }}
+              >
+                <div className="quiz-card-head">
+                  <div className="quiz-card-kicker">
+                    <span className="quiz-card-kicker-index">Question {idx + 1}</span>
+                    <span className="quiz-card-kicker-type">Multiple choice</span>
+                  </div>
+                </div>
+
+                <h3 className="quiz-question font-medium text-gray-100 flex items-start gap-3">
+                  <span className="quiz-question-index text-emerald-400 font-bold shrink-0">Q{idx + 1}.</span>
+                  <span className="quiz-question-body prose-invert">
+                    <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
+                      {q.question}
+                    </ReactMarkdown>
+                  </span>
+                </h3>
+
+                <div className="quiz-card-divider" />
+
+                <div className="quiz-options grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                  {q.options.map((opt, oIdx) => {
+                    const isSelected = userAnswers[idx] === opt;
+                    const isCorrect = opt === q.options[q.correct_index];
+                    let cls = "quiz-option";
+                    if (submitted) {
+                      if (isCorrect) cls += " correct";
+                      else if (isSelected) cls += " incorrect";
+                    } else if (isSelected) {
+                      cls += " selected";
+                    }
+
+                    return (
+                      <button
+                        key={oIdx}
+                        onClick={() => !submitted && setUserAnswers((prev) => ({ ...prev, [idx]: opt }))}
+                        disabled={submitted}
+                        className={`${cls} flex items-center justify-between gap-2`}
+                      >
+                        <span>{opt}</span>
+                        {submitted && isCorrect && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
+                        {submitted && isSelected && !isCorrect && <XCircle className="w-4 h-4 text-red-400 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {submitted && (
+                  <div className="prose-invert p-3.5 bg-emerald-950/30 border border-emerald-500/25 rounded-xl text-sm text-emerald-100 leading-relaxed">
+                    <strong className="text-emerald-300">Explanation: </strong>
+                    <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
+                      {q.explanation}
+                    </ReactMarkdown>
+                  </div>
+                )}
               </div>
-            </div>
+            ))}
 
-            <h3 className="quiz-question font-medium text-gray-100 flex items-start gap-3">
-              <span className="quiz-question-index text-emerald-400 font-bold shrink-0">Q{idx + 1}.</span>
-              <span className="quiz-question-body">
-                <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
-                  {q.question}
-                </ReactMarkdown>
-              </span>
-            </h3>
-
-            <div className="quiz-card-divider" />
-
-            <div className="quiz-options grid grid-cols-1 md:grid-cols-2 gap-2.5 pl-0 md:pl-4">
-              {q.options.map((opt, oIdx) => {
-                const isSelected = userAnswers[idx] === opt;
-                const isCorrect = opt === q.options[q.correct_index];
-                let cls = "quiz-option";
-                if (submitted) {
-                  if (isCorrect) cls += " correct";
-                  else if (isSelected) cls += " incorrect";
-                } else if (isSelected) {
-                  cls += " selected";
-                }
-
-                return (
-                  <button
-                    key={oIdx}
-                    onClick={() => !submitted && setUserAnswers((prev) => ({ ...prev, [idx]: opt }))}
-                    disabled={submitted}
-                    className={`${cls} flex items-center justify-between gap-2`}
-                  >
-                    <span>{opt}</span>
-                    {submitted && isCorrect && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
-                    {submitted && isSelected && !isCorrect && <XCircle className="w-4 h-4 text-red-400 shrink-0" />}
-                  </button>
-                );
-              })}
-            </div>
+            {questions.length > 0 && !submitted && (
+              <button
+                onClick={() => setSubmitted(true)}
+                disabled={answeredCount < questions.length}
+                className="quiz-submit-btn w-full btn-primary py-3.5"
+                style={{ background: "linear-gradient(135deg, #059669, #10b981)" }}
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                Submit Quiz ({answeredCount}/{questions.length})
+              </button>
+            )}
 
             {submitted && (
-              <div className="mt-2 p-3.5 bg-emerald-950/30 border border-emerald-500/25 rounded-xl text-sm text-emerald-100 leading-relaxed">
-                <strong className="text-emerald-300">Explanation: </strong>
-                {q.explanation}
-              </div>
-            )}
-          </div>
-        ))}
+              <div className="quiz-result animate-fade-in-up">
+                <div className="quiz-result-grid">
+                  <div className="quiz-result-score">
+                    <div className="score-ring mx-auto">
+                      <svg width="120" height="120" viewBox="0 0 120 120">
+                        <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" />
+                        <circle
+                          cx="60" cy="60" r="52" fill="none"
+                          stroke="#34d399" strokeWidth="8"
+                          strokeLinecap="round"
+                          strokeDasharray={`${(scorePct / 100) * 327} 327`}
+                        />
+                      </svg>
+                      <div className="score-ring-label">
+                        <span className="text-2xl font-bold text-emerald-300">{score}/{questions.length}</span>
+                        <span className="text-xs text-emerald-400/80">{Math.round(scorePct)}%</span>
+                      </div>
+                    </div>
+                  </div>
 
-        {questions.length > 0 && !submitted && (
-          <button
-            onClick={() => setSubmitted(true)}
-            disabled={answeredCount < questions.length}
-            className="quiz-submit-btn w-full btn-primary py-3.5"
-            style={{ background: "linear-gradient(135deg, #059669, #10b981)" }}
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            Submit Quiz ({answeredCount}/{questions.length})
-          </button>
-        )}
+                  <div className="quiz-result-copy">
+                    <span className="quiz-result-kicker">Quiz complete</span>
+                    <h3 className="quiz-result-title">{scoreMessage}</h3>
+                    <p className="quiz-result-body text-sm text-[var(--text-muted)]">
+                      Review the explanations above or try a related topic to reinforce what you missed.
+                    </p>
 
-        {submitted && (
-          <div className="quiz-result animate-fade-in-up">
-            <div className="quiz-result-grid">
-              <div className="quiz-result-score">
-                <div className="score-ring mx-auto">
-                  <svg width="120" height="120" viewBox="0 0 120 120">
-                    <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" />
-                    <circle
-                      cx="60" cy="60" r="52" fill="none"
-                      stroke="#34d399" strokeWidth="8"
-                      strokeLinecap="round"
-                      strokeDasharray={`${(scorePct / 100) * 327} 327`}
-                    />
-                  </svg>
-                  <div className="score-ring-label">
-                    <span className="text-2xl font-bold text-emerald-300">{score}/{questions.length}</span>
-                    <span className="text-xs text-emerald-400/80">{Math.round(scorePct)}%</span>
+                    <button
+                      onClick={handleGenerate}
+                      className="quiz-try-again btn-primary text-sm"
+                      style={{ background: "linear-gradient(135deg, #059669, #10b981)" }}
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Try Again
+                    </button>
                   </div>
                 </div>
               </div>
-
-              <div className="quiz-result-copy">
-                <span className="quiz-result-kicker">Quiz complete</span>
-                <h3 className="quiz-result-title">{scoreMessage}</h3>
-                <p className="quiz-result-body text-sm text-[var(--text-muted)]">
-                  Review the explanations below or try a related topic to reinforce what you missed.
-                </p>
-
-                <button
-                  onClick={handleGenerate}
-                  className="quiz-try-again btn-primary text-sm"
-                  style={{ background: "linear-gradient(135deg, #059669, #10b981)" }}
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  Try Again
-                </button>
-              </div>
-            </div>
+            )}
           </div>
         )}
       </div>
