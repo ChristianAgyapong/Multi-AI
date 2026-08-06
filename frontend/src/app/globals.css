@@ -601,25 +601,25 @@ body {
 .prose-invert {
   color: var(--text-main);
   font-size: 0.95rem;
-  line-height: 1.75;
+  line-height: 1.6;
 }
 
 .prose-invert h1,
 .prose-invert h2,
 .prose-invert h3 {
   color: #ffffff;
-  margin-top: 1.5rem;
-  margin-bottom: 0.75rem;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
   font-weight: 600;
   letter-spacing: -0.015em;
 }
 
-.prose-invert p { margin-bottom: 1rem; }
+.prose-invert p { margin-bottom: 0.5rem; }
 
 .prose-invert ul,
 .prose-invert ol {
-  padding-left: 1.5rem;
-  margin-bottom: 1rem;
+  padding-left: 1.25rem;
+  margin-bottom: 0.5rem;
 }
 
 .prose-invert li { margin-bottom: 0.35rem; }
