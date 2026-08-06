@@ -307,8 +307,10 @@ body: JSON.stringify({
 
                   {/* Message Bubble */}
                   <div
-                    className={`flex flex-col max-w-[85%] md:max-w-[75%] ${
-                      m.role === "user" ? "items-end" : "items-start"
+                    className={`flex flex-col ${
+                      m.role === "user"
+                        ? "items-end max-w-[80%] md:max-w-[70%]"
+                        : "items-start max-w-[92%] md:max-w-[88%]"
                     }`}
                   >
                     <div
