@@ -53,6 +53,7 @@ const tabs: {
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("chat");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [chatMode, setChatMode] = useState<string>("direct");
 
   return (
     <>
@@ -65,7 +66,11 @@ export default function Home() {
         {/* Sidebar — desktop only */}
         {isSidebarOpen && (
           <aside className="sidebar-desktop w-[320px] shrink-0 z-10 flex flex-col h-full overflow-y-auto">
-            <Sidebar onStartSession={() => setActiveTab("chat")} />
+            <Sidebar
+              onStartSession={() => setActiveTab("chat")}
+              chatMode={chatMode}
+              setChatMode={setChatMode}
+            />
           </aside>
         )}
 
@@ -114,7 +119,7 @@ export default function Home() {
           {/* Tab panel */}
           <div className="flex-1 min-h-0 relative flex flex-col">
             <div key={activeTab} className="tab-content-enter h-full">
-              {activeTab === "chat" && <Chat />}
+              {activeTab === "chat" && <Chat mode={chatMode} />}
               {activeTab === "quiz" && <Quiz />}
               {activeTab === "flashcards" && <Flashcards />}
               {activeTab === "debate" && <Debate />}

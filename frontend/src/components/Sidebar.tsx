@@ -16,6 +16,7 @@ import {
   Layers,
 } from "lucide-react";
 import { setStoredSessionId, withSessionHeaders } from "@/lib/session";
+import { MODES } from "./Chat";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -77,7 +78,13 @@ function CollapsibleSection({
   );
 }
 
-export default function Sidebar({ onStartSession }: { onStartSession?: () => void }) {
+interface SidebarProps {
+  onStartSession?: () => void;
+  chatMode?: string;
+  setChatMode?: (mode: string) => void;
+}
+
+export default function Sidebar({ onStartSession, chatMode, setChatMode }: SidebarProps) {
   const [provider, setProvider] = useState<ProviderStatus | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [materials, setMaterials] = useState<MaterialsStats | null>(null);
@@ -204,6 +211,26 @@ export default function Sidebar({ onStartSession }: { onStartSession?: () => voi
         <div className="sidebar-divider" />
 
         <div className="sidebar-body px-3 pb-3 space-y-3">
+          {/* Chat Mode */}
+          <CollapsibleSection title="Chat Mode" icon={Sparkles} defaultOpen={true}>
+            <div className="flex flex-wrap gap-1.5 mb-1">
+              {MODES.map(({ id, label, desc }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setChatMode?.(id)}
+                  className={`mode-pill ${chatMode === id ? "active" : ""}`}
+                  title={desc}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[0.7rem] text-[var(--text-muted)] leading-relaxed">
+              {MODES.find((m) => m.id === chatMode)?.desc || "Clear explanations"}
+            </p>
+          </CollapsibleSection>
+
           {/* Study Materials */}
           <CollapsibleSection
             title="Study Materials"

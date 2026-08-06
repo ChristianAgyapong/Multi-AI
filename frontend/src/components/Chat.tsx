@@ -34,7 +34,7 @@ interface Mode {
   agentMode: string;
 }
 
-const MODES: Mode[] = [
+export const MODES: Mode[] = [
   { id: "socratic", label: "Socratic", desc: "Guided questions", agentMode: "socratic_peer" },
   { id: "direct", label: "Direct", desc: "Clear explanations", agentMode: "tutor" },
   { id: "exam", label: "Exam Prep", desc: "Test-focused", agentMode: "quiz_master" },
@@ -43,10 +43,14 @@ const MODES: Mode[] = [
 const formatTime = (date: Date) =>
   date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-export default function Chat() {
+interface ChatProps {
+  mode?: string;
+}
+
+export default function Chat({ mode: modeProp }: ChatProps = {}) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [agentMode, setAgentMode] = useState("direct");
+  const agentMode = modeProp ?? "direct";
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
@@ -220,29 +224,17 @@ body: JSON.stringify({
 
   return (
     <div className="chat-shell flex flex-col h-full relative overflow-hidden" onPaste={handlePaste}>
-      <div className={`chat-toolbar shrink-0 ${messages.length === 0 ? "justify-center" : "justify-end"}`}>
-          <div className="flex items-center gap-1.5 flex-wrap">
-          {MODES.map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setAgentMode(id)}
-              className={`mode-pill ${agentMode === id ? "active" : ""}`}
-              title={MODES.find((m) => m.id === id)?.desc}
-            >
-              {label}
-            </button>
-          ))}
-          </div>
-          {messages.length > 0 && (
-            <button
-              onClick={() => setMessages([])}
-              className="p-2 text-[var(--text-muted)] hover:text-red-400 rounded-xl hover:bg-white/5 transition-colors"
-              title="Clear chat"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
-      </div>
+      {messages.length > 0 && (
+        <div className="chat-toolbar shrink-0 justify-end">
+          <button
+            onClick={() => setMessages([])}
+            className="p-2 text-[var(--text-muted)] hover:text-red-400 rounded-xl hover:bg-white/5 transition-colors"
+            title="Clear chat"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Messages List */}
       <div className="chat-stage flex-1 overflow-y-auto px-4 py-2 md:px-8 bg-transparent">
