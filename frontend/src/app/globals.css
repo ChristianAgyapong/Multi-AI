@@ -773,13 +773,6 @@ body {
   transform: translateY(0);
 }
 
-.sidebar-status-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  padding: 0 1rem 0.9rem;
-}
-
 .sidebar-section {
   background: rgba(255, 255, 255, 0.018);
   border: 1px solid rgba(255, 255, 255, 0.045);
@@ -838,15 +831,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.65rem 1rem 0;
-}
-
-.sidebar-provider-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0 1rem 0.85rem;
+  padding: 0.5rem 0;
 }
 
 .sidebar-status-pill {
@@ -915,6 +900,9 @@ body {
 .sidebar-body {
   display: flex;
   flex-direction: column;
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .sidebar-file-row {
@@ -935,6 +923,12 @@ body {
   border-radius: 0.85rem;
   background: rgba(15, 23, 42, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-metric-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.25;
 }
 
 .sidebar-summary-card {

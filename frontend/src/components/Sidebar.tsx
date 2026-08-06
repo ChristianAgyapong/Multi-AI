@@ -183,25 +183,21 @@ export default function Sidebar({ onStartSession }: { onStartSession?: () => voi
           </button>
         </div>
 
-        <div className="sidebar-status-stack">
+        <div className="px-4 pb-3">
           <div className="sidebar-status-row">
             <span className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
               <Wifi size={14} className="text-[var(--text-dim)]" />
               AI Connection
             </span>
-            <span className={`sidebar-status-pill ${provider?.connected ? "online" : "offline"}`}>
-              {provider?.connected ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
-              {provider?.connected ? "Online" : "Offline"}
-            </span>
-          </div>
-
-          <div className="sidebar-provider-row">
-            <span className="text-[0.65rem] uppercase tracking-wide text-[var(--text-dim)]">
-              Provider
-            </span>
-            <span className="text-[0.72rem] text-[var(--text-muted)] truncate text-right">
-              {providerLabel}
-            </span>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className={`sidebar-status-pill ${provider?.connected ? "online" : "offline"}`}>
+                {provider?.connected ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
+                {provider?.connected ? "Online" : "Offline"}
+              </span>
+              <span className="text-[0.72rem] text-[var(--text-muted)] truncate max-w-[7rem]" title={providerLabel}>
+                {providerLabel}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -293,18 +289,18 @@ export default function Sidebar({ onStartSession }: { onStartSession?: () => voi
           <CollapsibleSection title="Learning Profile" icon={User}>
             <div className="grid grid-cols-2 gap-2 mb-3">
               <div className="sidebar-metric-card text-center">
-                <p className="text-xl font-bold text-indigo-300">{interactionCount}</p>
+                <p className="sidebar-metric-value text-indigo-300">{interactionCount}</p>
                 <p className="text-[0.65rem] text-[var(--text-dim)] mt-0.5">Sessions</p>
               </div>
               <div className="sidebar-metric-card text-center">
-                <p className="text-xs font-semibold text-purple-300 mt-1">{studyLevel}</p>
+                <p className="sidebar-metric-value text-purple-300 truncate" title={studyLevel}>{studyLevel}</p>
                 <p className="text-[0.65rem] text-[var(--text-dim)] mt-0.5">Level</p>
               </div>
             </div>
 
             <div className="sidebar-summary-card flex items-start gap-2 rounded-lg p-3">
               <User size={14} className="text-purple-400 shrink-0 mt-0.5" />
-              <p className="text-xs text-[var(--text-muted)] leading-relaxed line-clamp-5">
+              <p className="text-xs text-[var(--text-muted)] leading-relaxed line-clamp-4" title={profile?.summary?.replace("[Student Model] ", "") || ""}>
                 {profile?.summary?.replace("[Student Model] ", "") ||
                   "Ask a few questions so the tutor can adapt to your pace and topic."}
               </p>
