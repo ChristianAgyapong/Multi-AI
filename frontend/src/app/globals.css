@@ -601,28 +601,28 @@ body {
 .prose-invert {
   color: var(--text-main);
   font-size: 0.95rem;
-  line-height: 1.6;
+  line-height: 1.55;
 }
 
 .prose-invert h1,
 .prose-invert h2,
 .prose-invert h3 {
   color: #ffffff;
-  margin-top: 1rem;
-  margin-bottom: 0.5rem;
+  margin-top: 0.75rem;
+  margin-bottom: 0.35rem;
   font-weight: 600;
   letter-spacing: -0.015em;
 }
 
-.prose-invert p { margin-bottom: 0.5rem; }
+.prose-invert p { margin-bottom: 0.35rem; }
 
 .prose-invert ul,
 .prose-invert ol {
   padding-left: 1.25rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
 }
 
-.prose-invert li { margin-bottom: 0.35rem; }
+.prose-invert li { margin-bottom: 0.2rem; }
 .prose-invert li::marker { color: var(--accent-color); }
 
 .prose-invert code {
