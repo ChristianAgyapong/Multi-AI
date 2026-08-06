@@ -224,20 +224,8 @@ body: JSON.stringify({
 
   return (
     <div className="chat-shell flex flex-col h-full relative overflow-hidden" onPaste={handlePaste}>
-      {messages.length > 0 && (
-        <div className="chat-toolbar shrink-0 justify-end">
-          <button
-            onClick={() => setMessages([])}
-            className="p-2 text-[var(--text-muted)] hover:text-red-400 rounded-xl hover:bg-white/5 transition-colors"
-            title="Clear chat"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
       {/* Messages List */}
-      <div className="chat-stage flex-1 overflow-y-auto px-4 py-2 md:px-8 bg-transparent">
+      <div className="chat-stage flex-1 overflow-y-auto px-4 pt-0 pb-2 md:px-8 bg-transparent">
         <div className="chat-stage-inner max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto flex flex-col space-y-4">
           {messages.length === 0 ? (
             <div className="chat-empty flex flex-col items-center justify-center min-h-[62vh] text-center text-gray-400 gap-5 animate-fade-in-up px-2">
@@ -401,6 +389,17 @@ body: JSON.stringify({
               rows={1}
               className="flex-1 bg-transparent border-none px-3 py-2 text-[0.95rem] text-white placeholder-gray-400 focus:outline-none focus:ring-0 resize-none max-h-[132px]"
             />
+
+            {messages.length > 0 && !isStreaming && (
+              <button
+                onClick={() => setMessages([])}
+                className="mr-1 p-2 rounded-full text-gray-500 hover:text-red-400 hover:bg-white/5 transition-colors"
+                title="Clear chat"
+                type="button"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
 
             <button
               onClick={isStreaming ? handleStop : () => handleSend()}

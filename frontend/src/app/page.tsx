@@ -75,7 +75,7 @@ export default function Home() {
         )}
 
         {/* Main column */}
-        <div className="flex-1 min-w-0 z-10 flex flex-col gap-2 md:gap-3">
+        <div className="flex-1 min-w-0 z-10 flex flex-col">
           {/* Header */}
           <header className="bg-transparent border-b border-white/5 px-4 py-2 md:px-6 md:py-2 flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-3">
