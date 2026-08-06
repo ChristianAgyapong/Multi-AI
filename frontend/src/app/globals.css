@@ -673,6 +673,36 @@ body {
   font-weight: 600;
 }
 
+.prose-invert table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.prose-invert th,
+.prose-invert td {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.65rem 0.8rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.prose-invert th {
+  background: rgba(99, 102, 241, 0.12);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.prose-invert tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
 /* ─────────────────────────────────────────────────────────
    Animated background glow orbs
 ───────────────────────────────────────────────────────── */

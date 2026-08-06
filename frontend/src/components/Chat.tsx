@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
+import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
 import { Send, Image as ImageIcon, Sparkles, Trash2, X, User, Square, Copy, Check, Bot, Calculator, Target } from "lucide-react";
 import { setStoredSessionId, withSessionHeaders } from "@/lib/session";
@@ -352,7 +353,7 @@ body: JSON.stringify({
                             <span className="typing-dot" style={{ animationDelay: "0.3s" }} />
                           </div>
                         ) : (
-                          <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                          <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
                             {showCaret ? `${m.content} ▍` : m.content}
                           </ReactMarkdown>
                         )}
