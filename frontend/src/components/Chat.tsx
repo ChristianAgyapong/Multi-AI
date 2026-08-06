@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
-import { Send, Image as ImageIcon, Sparkles, Trash2, X, User, Square, Copy, Check } from "lucide-react";
+import { Send, Image as ImageIcon, Sparkles, Trash2, X, User, Square, Copy, Check, Bot, Calculator, Target } from "lucide-react";
 import { setStoredSessionId, withSessionHeaders } from "@/lib/session";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -255,12 +255,13 @@ body: JSON.stringify({
       <div className="chat-stage flex-1 overflow-y-auto px-4 py-6 md:px-8 bg-transparent">
         <div className="chat-stage-inner max-w-4xl mx-auto flex flex-col space-y-8">
           {messages.length === 0 ? (
-            <div className="chat-empty flex flex-col items-center justify-center min-h-[62vh] text-center text-gray-400 gap-4 animate-fade-in-up px-2">
-              <div className="p-5 bg-indigo-500/10 rounded-full border border-indigo-500/20 shadow-[0_0_60px_rgba(99,102,241,0.12)]">
-                <Sparkles className="w-12 h-12 text-indigo-400 opacity-80 animate-pulse" />
+            <div className="chat-empty flex flex-col items-center justify-center min-h-[62vh] text-center text-gray-400 gap-5 animate-fade-in-up px-2">
+              <div className="relative p-6 rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-600/10 border border-indigo-500/30 shadow-[0_0_80px_rgba(99,102,241,0.18)]">
+                <Bot className="w-14 h-14 text-indigo-300" />
+                <span className="absolute inset-0 rounded-full animate-ping bg-indigo-500/10" />
               </div>
-              <h3 className="text-2xl font-medium text-gray-200">How can I help you learn today?</h3>
-              <p className="max-w-md text-sm text-gray-400 leading-relaxed">
+              <h3 className="gradient-text text-3xl font-semibold text-white">How can I help you learn today?</h3>
+              <p className="max-w-lg text-sm text-gray-400 leading-relaxed">
                 Ask any math, physics, or general subject question. You can also paste screenshots directly into the chat!
               </p>
 
@@ -277,12 +278,12 @@ body: JSON.stringify({
               {/* Feature highlights */}
               <div className="chat-feature-grid grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 max-w-lg w-full">
                 {[
-                  { emoji: "📷", label: "Paste screenshots", sub: "Ctrl+V any image" },
-                  { emoji: "🧮", label: "Live math", sub: "LaTeX rendering" },
-                  { emoji: "🎯", label: "3 tutor modes", sub: "Socratic · Direct · Exam" },
-                ].map(({ emoji, label, sub }) => (
-                  <div key={label} className="chat-feature-card flex flex-col items-center gap-1 p-3 rounded-xl">
-                    <span className="text-lg">{emoji}</span>
+                  { icon: ImageIcon, label: "Paste screenshots", sub: "Ctrl+V any image" },
+                  { icon: Calculator, label: "Live math", sub: "LaTeX rendering" },
+                  { icon: Target, label: "3 tutor modes", sub: "Socratic · Direct · Exam" },
+                ].map(({ icon: Icon, label, sub }) => (
+                  <div key={label} className="chat-feature-card group flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all hover:-translate-y-1 hover:border-indigo-500/30 hover:shadow-[0_8px_24px_rgba(99,102,241,0.15)]">
+                    <Icon className="w-5 h-5 text-indigo-400 group-hover:text-indigo-300 transition-colors" />
                     <span className="text-xs font-medium text-[var(--text-main)]">{label}</span>
                     <span className="text-[0.65rem] text-[var(--text-dim)]">{sub}</span>
                   </div>
