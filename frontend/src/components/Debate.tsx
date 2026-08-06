@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Users, Send, RefreshCw, Trash2, Bot, GraduationCap } from "lucide-react";
+import { Users, Send, RefreshCw, Trash2, Bot, GraduationCap, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -10,6 +10,19 @@ interface DebateMessage {
   role: "fellow" | "tutor" | "student";
   content: string;
 }
+
+const TOPIC_SUGGESTIONS = [
+  "Photosynthesis",
+  "Newton's Laws",
+  "The French Revolution",
+  "Binary Search Trees",
+];
+
+const STEPS = [
+  { icon: Bot, label: "Fellow Student explains (with mistakes)" },
+  { icon: Users, label: "You correct their errors" },
+  { icon: GraduationCap, label: "Tutor grades your understanding" },
+];
 
 export default function Debate() {
   const [topic, setTopic] = useState("");
@@ -29,7 +42,6 @@ export default function Debate() {
 
   const startDebate = async () => {
     if (!topic.trim()) return;
-    
     setLoading(true);
     setMessages([]);
     setSessionActive(true);
@@ -38,18 +50,11 @@ export default function Debate() {
       const res = await fetch(`${API_BASE}/debate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          topic,
-          fellow_student_history: [],
-          tutor_history: [],
-        }),
+        body: JSON.stringify({ topic, fellow_student_history: [], tutor_history: [] }),
       });
       const data = await res.json();
-      
-      if (data.fellow) {
-        setMessages([{ role: "fellow", content: data.fellow }]);
-      }
-    } catch (err) {
+      if (data.fellow) setMessages([{ role: "fellow", content: data.fellow }]);
+    } catch {
       alert("Failed to start debate. Is the backend running?");
       setSessionActive(false);
     } finally {
@@ -59,19 +64,17 @@ export default function Debate() {
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
-
     const studentText = input;
     setInput("");
-    
+
     const newMessages: DebateMessage[] = [...messages, { role: "student", content: studentText }];
     setMessages(newMessages);
     setLoading(true);
 
-    // Build history for backend
     const fellowHistory = newMessages
       .filter((m) => m.role === "fellow" || m.role === "student")
       .map((m) => ({ role: m.role === "fellow" ? "assistant" : "user", content: m.content }));
-      
+
     const tutorHistory = newMessages
       .filter((m) => m.role === "tutor" || m.role === "student")
       .map((m) => ({ role: m.role === "tutor" ? "assistant" : "user", content: m.content }));
@@ -88,18 +91,14 @@ export default function Debate() {
         }),
       });
       const data = await res.json();
-      
+
       setMessages((prev) => {
         const updated = [...prev];
-        if (data.tutor) {
-          updated.push({ role: "tutor", content: data.tutor });
-        }
-        if (data.fellow) {
-          updated.push({ role: "fellow", content: data.fellow });
-        }
+        if (data.tutor) updated.push({ role: "tutor", content: data.tutor });
+        if (data.fellow) updated.push({ role: "fellow", content: data.fellow });
         return updated;
       });
-    } catch (err) {
+    } catch {
       alert("Failed to send message.");
     } finally {
       setLoading(false);
@@ -112,18 +111,40 @@ export default function Debate() {
     setMessages([]);
   };
 
+  const roleStyles = {
+    fellow: {
+      bg: "bg-blue-950/40 border-blue-500/30",
+      label: "Fellow Student",
+      labelColor: "text-blue-400",
+      icon: Bot,
+    },
+    tutor: {
+      bg: "bg-emerald-950/40 border-emerald-500/30",
+      label: "Tutor Grader",
+      labelColor: "text-emerald-400",
+      icon: GraduationCap,
+    },
+    student: {
+      bg: "bg-pink-950/40 border-pink-500/30",
+      label: "You",
+      labelColor: "text-pink-400",
+      icon: null,
+    },
+  };
+
   return (
-    <div className="flex flex-col h-[85vh] glass-panel p-4 relative">
-      <div className="flex items-center justify-between pb-4 border-b border-[var(--border-color)]">
-        <div className="flex items-center gap-2">
-          <Users className="w-5 h-5 text-indigo-400" />
-          <h2 className="font-semibold text-lg gradient-text">Debate Arena (Feynman Technique)</h2>
+    <div className="flex flex-col h-full glass-panel overflow-hidden">
+      <div className="panel-header px-5 pt-5 shrink-0">
+        <Users className="w-5 h-5 text-pink-400" />
+        <div className="flex-1">
+          <h2 className="gradient-text">Debate Arena</h2>
+          <p className="text-xs text-[var(--text-muted)] mt-0.5">Feynman Technique — learn by teaching</p>
         </div>
         {sessionActive && (
           <button
             onClick={endDebate}
-            className="p-1.5 text-gray-400 hover:text-red-400 rounded-lg hover:bg-gray-800 transition"
-            title="End Session"
+            className="p-2 text-[var(--text-muted)] hover:text-red-400 rounded-xl hover:bg-white/5 transition"
+            title="End session"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -131,95 +152,130 @@ export default function Debate() {
       </div>
 
       {!sessionActive ? (
-        <div className="flex-1 flex flex-col items-center justify-center py-8">
-          <div className="max-w-md text-center space-y-6">
-            <div className="mx-auto w-16 h-16 bg-indigo-900/30 rounded-full flex items-center justify-center border border-indigo-500/30">
-              <Users className="w-8 h-8 text-indigo-400" />
+        <div className="flex-1 flex flex-col items-center justify-center px-5 py-8 overflow-y-auto">
+          <div className="max-w-md w-full text-center space-y-6 animate-fade-in-up">
+            <div className="mx-auto w-20 h-20 rounded-full flex items-center justify-center border border-pink-500/30"
+              style={{ background: "linear-gradient(135deg, rgba(236,72,153,0.15), rgba(139,92,246,0.1))" }}
+            >
+              <Users className="w-10 h-10 text-pink-400" />
             </div>
+
             <div>
-              <h3 className="text-xl font-medium text-gray-200 mb-2">Master by Teaching</h3>
-              <p className="text-sm text-gray-400">
-                A "Fellow Student" AI will explain a topic to you, but they'll make mistakes. 
-                Your job is to correct them. A "Tutor" AI will grade your corrections.
+              <h3 className="text-xl font-bold text-white mb-2">Master by Teaching</h3>
+              <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+                A &quot;Fellow Student&quot; AI explains a topic — but makes mistakes.
+                Your job is to spot and correct them. A Tutor AI then grades your understanding.
               </p>
             </div>
-            <div className="flex flex-col gap-3">
+
+            {/* How it works */}
+            <div className="space-y-2 text-left">
+              {STEPS.map(({ icon: Icon, label }, i) => (
+                <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/40 border border-[var(--border-color)]">
+                  <div className="w-7 h-7 rounded-full bg-pink-500/15 border border-pink-500/30 flex items-center justify-center shrink-0">
+                    <span className="text-xs font-bold text-pink-400">{i + 1}</span>
+                  </div>
+                  <Icon size={14} className="text-[var(--text-muted)] shrink-0" />
+                  <span className="text-xs text-[var(--text-muted)]">{label}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-3">
               <input
                 type="text"
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
-                placeholder="Enter a topic to teach (e.g. Photosynthesis)"
-                className="bg-[#1e293b]/80 border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 w-full text-center"
+                onKeyDown={(e) => e.key === "Enter" && startDebate()}
+                placeholder="Enter a topic (e.g. Photosynthesis)"
+                className="input-field text-center"
               />
+
+              <div className="flex flex-wrap justify-center gap-2">
+                {TOPIC_SUGGESTIONS.map((s) => (
+                  <button key={s} onClick={() => setTopic(s)} className="suggestion-chip text-[0.75rem] py-1.5">
+                    <Sparkles className="w-3 h-3" />
+                    {s}
+                  </button>
+                ))}
+              </div>
+
               <button
                 onClick={startDebate}
                 disabled={loading || !topic.trim()}
-                className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white py-3 rounded-xl font-medium transition flex items-center justify-center gap-2 w-full"
+                className="w-full btn-primary py-3"
+                style={{ background: "linear-gradient(135deg, #db2777, #ec4899)" }}
               >
-                {loading && <RefreshCw className="w-4 h-4 animate-spin" />}
-                {loading ? "Starting..." : "Start Debate"}
+                {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
+                {loading ? "Starting…" : "Start Debate Session"}
               </button>
             </div>
           </div>
         </div>
       ) : (
         <>
-          <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-2">
-            <div className="text-center text-xs text-indigo-300 font-medium pb-2">
-              Topic: {topic}
+          <div className="px-5 py-2 border-b border-[var(--border-color)] shrink-0">
+            <div className="text-center">
+              <span className="text-xs font-medium text-pink-300/80 bg-pink-500/10 border border-pink-500/20 px-3 py-1 rounded-full">
+                Topic: {topic}
+              </span>
             </div>
-            
-            {messages.map((m, idx) => (
-              <div
-                key={idx}
-                className={`flex flex-col ${m.role === "student" ? "items-end" : "items-start"}`}
-              >
-                <div className="flex items-center gap-2 mb-1 px-1">
-                  {m.role === "fellow" && (
-                    <><Bot className="w-3.5 h-3.5 text-blue-400" /><span className="text-xs text-blue-400 font-medium">Fellow Student (AI)</span></>
-                  )}
-                  {m.role === "tutor" && (
-                    <><GraduationCap className="w-3.5 h-3.5 text-emerald-400" /><span className="text-xs text-emerald-400 font-medium">Tutor Grader (AI)</span></>
-                  )}
-                  {m.role === "student" && (
-                    <span className="text-xs text-indigo-400 font-medium">You</span>
-                  )}
-                </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+            {messages.map((m, idx) => {
+              const style = roleStyles[m.role];
+              const Icon = style.icon;
+              return (
                 <div
-                  className={`max-w-[85%] rounded-2xl p-4 ${
-                    m.role === "student"
-                      ? "bg-indigo-600/30 border border-indigo-500/30 text-white"
-                      : m.role === "fellow"
-                      ? "bg-blue-900/20 border border-blue-500/30 text-gray-100"
-                      : "bg-emerald-900/20 border border-emerald-500/30 text-gray-100"
-                  }`}
+                  key={idx}
+                  className={`flex flex-col animate-fade-in-up ${m.role === "student" ? "items-end" : "items-start"}`}
+                  style={{ animationDelay: `${idx * 0.04}s` }}
                 >
-                  <div className="prose prose-invert max-w-none text-sm leading-relaxed">
-                    <ReactMarkdown>{m.content}</ReactMarkdown>
+                  <div className={`flex items-center gap-1.5 mb-1.5 px-1 ${style.labelColor}`}>
+                    {Icon && <Icon className="w-3.5 h-3.5" />}
+                    <span className="text-xs font-semibold">{style.label}</span>
+                  </div>
+                  <div className={`max-w-[88%] rounded-2xl p-4 border ${style.bg}`}>
+                    <div className="prose prose-invert max-w-none text-sm leading-relaxed">
+                      <ReactMarkdown>{m.content}</ReactMarkdown>
+                    </div>
                   </div>
                 </div>
+              );
+            })}
+
+            {loading && (
+              <div className="flex items-center gap-2 text-xs text-[var(--text-muted)] pl-1">
+                <span className="typing-dot" />
+                <span className="typing-dot" style={{ animationDelay: "0.15s" }} />
+                <span className="typing-dot" style={{ animationDelay: "0.3s" }} />
+                <span className="ml-1">Thinking…</span>
               </div>
-            ))}
+            )}
             <div ref={messagesEndRef} />
           </div>
-          
-          <div className="flex items-center gap-2 pt-3 border-t border-[var(--border-color)]">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSend()}
-              placeholder="Correct the fellow student..."
-              disabled={loading}
-              className="flex-1 bg-[#1e293b]/80 border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
-            />
-            <button
-              onClick={handleSend}
-              disabled={loading || !input.trim()}
-              className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white p-2.5 rounded-xl transition"
-            >
-              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            </button>
+
+          <div className="shrink-0 px-4 py-3 border-t border-[var(--border-color)] bg-slate-900/40">
+            <div className="flex items-end gap-2 max-w-3xl mx-auto">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                placeholder="Correct the fellow student…"
+                disabled={loading}
+                className="input-field flex-1"
+              />
+              <button
+                onClick={handleSend}
+                disabled={loading || !input.trim()}
+                className="btn-primary p-2.5 shrink-0"
+                style={{ background: "linear-gradient(135deg, #db2777, #ec4899)" }}
+              >
+                {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
         </>
       )}

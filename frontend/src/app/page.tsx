@@ -6,91 +6,160 @@ import Quiz from "@/components/Quiz";
 import Flashcards from "@/components/Flashcards";
 import Debate from "@/components/Debate";
 import Sidebar from "@/components/Sidebar";
-import { MessageSquare, HelpCircle, GraduationCap, BookOpen, Users } from "lucide-react";
+import {
+  MessageSquare,
+  HelpCircle,
+  BookOpen,
+  Users,
+  GraduationCap,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Sparkles,
+} from "lucide-react";
+
+type Tab = "chat" | "quiz" | "flashcards" | "debate";
+
+const tabs: {
+  id: Tab;
+  label: string;
+  shortLabel: string;
+  Icon: React.ElementType;
+  description: string;
+}[] = [
+  {
+    id: "chat",
+    label: "Chat",
+    shortLabel: "Chat",
+    Icon: MessageSquare,
+    description: "Ask questions, upload screenshots, get step-by-step help",
+  },
+  {
+    id: "quiz",
+    label: "Quiz",
+    shortLabel: "Quiz",
+    Icon: HelpCircle,
+    description: "Test your knowledge with AI-generated practice questions",
+  },
+  {
+    id: "flashcards",
+    label: "Flashcards",
+    shortLabel: "Cards",
+    Icon: BookOpen,
+    description: "Review key concepts with flip cards built from your notes",
+  },
+  {
+    id: "debate",
+    label: "Debate",
+    shortLabel: "Debate",
+    Icon: Users,
+    description: "Master topics by correcting a fellow student (Feynman technique)",
+  },
+];
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<"chat" | "quiz" | "flashcards" | "debate">("chat");
+  const [activeTab, setActiveTab] = useState<Tab>("chat");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  const activeTabInfo = tabs.find((t) => t.id === activeTab)!;
 
   return (
-    <main className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto relative flex flex-col md:flex-row gap-6">
-      {/* Dynamic Background Glow Effects */}
-      <div className="glow-bg top-[-50px] left-[-50px] opacity-20" />
-      <div className="glow-bg bottom-[-50px] right-[-50px] opacity-15" />
+    <>
+      <main className="app-main relative flex h-screen max-w-[1600px] mx-auto gap-5 md:gap-8 p-4 md:p-8 overflow-hidden">
+        {/* Ambient glow */}
+        <div className="glow-bg" style={{ top: "-150px", left: "-150px", opacity: 0.22 }} />
+        <div className="glow-bg" style={{ bottom: "-150px", right: "-150px", opacity: 0.15, animationDelay: "5s" }} />
+        <div className="glow-bg" style={{ top: "40%", left: "50%", opacity: 0.08, animationDelay: "2s", width: "800px", height: "800px", transform: "translate(-50%, -50%)" }} />
 
-      {/* Sidebar (Left) */}
-      <Sidebar />
+        {/* Sidebar — desktop only */}
+        {isSidebarOpen && (
+          <aside className="sidebar-desktop w-[320px] shrink-0 z-10 flex flex-col h-full overflow-y-auto">
+            <Sidebar />
+          </aside>
+        )}
 
-      {/* Main Content (Right) */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Top Header Navigation */}
-        <header className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 glass-panel px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-indigo-600/20 border border-indigo-500/30 rounded-xl">
-              <GraduationCap className="w-6 h-6 text-indigo-400" />
+        {/* Main column */}
+        <div className="flex-1 min-w-0 z-10 flex flex-col gap-4 md:gap-6">
+          {/* Header */}
+          <header className="glass-panel px-5 py-4 md:px-8 md:py-6 flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="hidden md:flex p-2.5 rounded-xl text-[var(--text-muted)] hover:text-white hover:bg-white/10 transition-all active:scale-95"
+                title="Toggle sidebar"
+              >
+                {isSidebarOpen ? <PanelLeftClose size={22} /> : <PanelLeftOpen size={22} />}
+              </button>
+
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center">
+                  <GraduationCap size={22} className="text-indigo-400" />
+                </div>
+                <div>
+                  <h1 className="gradient-text text-base md:text-lg font-bold leading-tight">
+                    Multimodal AI Tutor
+                  </h1>
+                  <p className="text-[0.7rem] text-[var(--text-muted)] mt-0.5 hidden sm:block">
+                    Your personal AI study companion
+                  </p>
+                </div>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-bold gradient-text">Multimodal AI Tutor</h1>
-              <p className="text-xs text-gray-400">Powered by Next.js & FastAPI</p>
-            </div>
+
+            {/* Desktop tab bar */}
+            <nav
+              className="desktop-tabs flex gap-1 p-1 rounded-xl"
+              style={{ background: "rgba(15, 23, 42, 0.8)", border: "1px solid var(--border-color)" }}
+            >
+              {tabs.map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  data-tab={id}
+                  onClick={() => setActiveTab(id)}
+                  className={`tab-pill ${activeTab === id ? "active" : ""}`}
+                >
+                  <Icon size={15} />
+                  {label}
+                </button>
+              ))}
+            </nav>
+          </header>
+
+          {/* Tab context banner */}
+          <div className="flex items-center gap-2 px-1 animate-fade-in-up">
+            <Sparkles size={14} className="text-indigo-400 shrink-0" />
+            <p className="text-xs text-[var(--text-muted)]">
+              <span className="font-semibold text-[var(--text-main)]">{activeTabInfo.label}</span>
+              {" — "}
+              {activeTabInfo.description}
+            </p>
           </div>
 
-          {/* Tab Switching Controls */}
-          <div className="flex bg-[#1e293b]/80 border border-[var(--border-color)] p-1 rounded-xl overflow-x-auto max-w-full custom-scrollbar">
-            <button
-              onClick={() => setActiveTab("chat")}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
-                activeTab === "chat"
-                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/25"
-                  : "text-gray-400 hover:text-gray-200"
-              }`}
-            >
-              <MessageSquare className="w-4 h-4" />
-              Chat
-            </button>
-            <button
-              onClick={() => setActiveTab("quiz")}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
-                activeTab === "quiz"
-                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/25"
-                  : "text-gray-400 hover:text-gray-200"
-              }`}
-            >
-              <HelpCircle className="w-4 h-4" />
-              Quiz
-            </button>
-            <button
-              onClick={() => setActiveTab("flashcards")}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
-                activeTab === "flashcards"
-                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/25"
-                  : "text-gray-400 hover:text-gray-200"
-              }`}
-            >
-              <BookOpen className="w-4 h-4" />
-              Cards
-            </button>
-            <button
-              onClick={() => setActiveTab("debate")}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
-                activeTab === "debate"
-                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/25"
-                  : "text-gray-400 hover:text-gray-200"
-              }`}
-            >
-              <Users className="w-4 h-4" />
-              Debate
-            </button>
+          {/* Tab panel */}
+          <div className="flex-1 min-h-0 relative flex flex-col">
+            <div key={activeTab} className="tab-content-enter h-full">
+              {activeTab === "chat" && <Chat />}
+              {activeTab === "quiz" && <Quiz />}
+              {activeTab === "flashcards" && <Flashcards />}
+              {activeTab === "debate" && <Debate />}
+            </div>
           </div>
-        </header>
-
-        {/* Tab Panels */}
-        <div className="flex-1">
-          {activeTab === "chat" && <Chat />}
-          {activeTab === "quiz" && <Quiz />}
-          {activeTab === "flashcards" && <Flashcards />}
-          {activeTab === "debate" && <Debate />}
         </div>
-      </div>
-    </main>
+      </main>
+
+      {/* Mobile bottom navigation */}
+      <nav className="mobile-nav">
+        {tabs.map(({ id, shortLabel, Icon }) => (
+          <button
+            key={id}
+            data-tab={id}
+            onClick={() => setActiveTab(id)}
+            className={`mobile-nav-item ${activeTab === id ? "active" : ""}`}
+          >
+            <Icon size={20} />
+            {shortLabel}
+          </button>
+        ))}
+      </nav>
+    </>
   );
 }

@@ -1,24 +1,31 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Server, Database, User, FileText, Upload, Trash2, CheckCircle2, XCircle } from "lucide-react";
+import {
+  Wifi,
+  BookOpen,
+  User,
+  Upload,
+  Trash2,
+  CheckCircle2,
+  XCircle,
+  Sparkles,
+  GraduationCap,
+  ChevronDown,
+  FileText,
+  Layers,
+} from "lucide-react";
+import { setStoredSessionId, withSessionHeaders } from "@/lib/session";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface ProviderStatus {
   provider: string;
   connected: boolean;
-  message: string;
+  message?: string;
 }
 
-interface CacheStats {
-  size: number;
-  max_size: number;
-  items: number;
-  cache_size_bytes?: number;
-}
-
-interface StudentProfile {
+interface Profile {
   interaction_count: number;
   summary: string;
 }
@@ -28,150 +35,271 @@ interface MaterialsStats {
   total_chunks: number;
 }
 
+function CollapsibleSection({
+  title,
+  icon: Icon,
+  badge,
+  defaultOpen = true,
+  children,
+}: {
+  title: string;
+  icon: React.ElementType;
+  badge?: React.ReactNode;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="sidebar-section">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="sidebar-section-header"
+      >
+        <span className="flex items-center gap-2">
+          <Icon size={14} className="text-indigo-400" />
+          <span className="sidebar-section-title">{title}</span>
+        </span>
+        <span className="flex items-center gap-2">
+          {badge}
+          <ChevronDown
+            size={14}
+            className={`text-[var(--text-dim)] transition-transform duration-200 ${
+              open ? "" : "-rotate-90"
+            }`}
+          />
+        </span>
+      </button>
+      {open && (
+        <div className="sidebar-section-body animate-fade-in-up">{children}</div>
+      )}
+    </div>
+  );
+}
+
 export default function Sidebar() {
   const [provider, setProvider] = useState<ProviderStatus | null>(null);
-  const [cache, setCache] = useState<CacheStats | null>(null);
-  const [profile, setProfile] = useState<StudentProfile | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [materials, setMaterials] = useState<MaterialsStats | null>(null);
   const [uploading, setUploading] = useState(false);
 
   const fetchData = async () => {
     try {
-      const [provRes, cacheRes, profRes, matRes] = await Promise.all([
-        fetch(`${API_BASE}/provider/status`),
-        fetch(`${API_BASE}/cache/stats`),
-        fetch(`${API_BASE}/student/profile`),
-        fetch(`${API_BASE}/materials`),
+      const [provRes, profRes, matRes] = await Promise.all([
+        fetch(`${API_BASE}/provider/status`, { headers: withSessionHeaders() }),
+        fetch(`${API_BASE}/student/profile`, { headers: withSessionHeaders() }),
+        fetch(`${API_BASE}/materials`, { headers: withSessionHeaders() }),
       ]);
-
       setProvider(await provRes.json());
-      setCache(await cacheRes.json());
       setProfile(await profRes.json());
-      setMaterials(await matRes.json());
-    } catch (err) {
-      console.error("Failed to fetch sidebar data", err);
+      const materialsData = await matRes.json();
+      setMaterials(materialsData);
+      setStoredSessionId(materialsData.session_id);
+    } catch {
+      // Backend offline — keep last known state
     }
   };
 
   useEffect(() => {
-    fetchData();
-    // Refresh stats every 10 seconds
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
+    const initialLoad = window.setTimeout(() => {
+      void fetchData();
+    }, 0);
+    const interval = setInterval(() => { void fetchData(); }, 15000);
+    return () => {
+      window.clearTimeout(initialLoad);
+      clearInterval(interval);
+    };
   }, []);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setUploading(true);
     const formData = new FormData();
     formData.append("file", file);
-
     try {
-      await fetch(`${API_BASE}/materials`, {
+      const res = await fetch(`${API_BASE}/materials`, {
         method: "POST",
+        headers: withSessionHeaders(),
         body: formData,
       });
-      fetchData(); // Refresh materials list
-    } catch (err) {
+      const data = await res.json();
+      setStoredSessionId(data.session_id);
+      void fetchData();
+    } catch {
       alert("Failed to upload material.");
     } finally {
       setUploading(false);
-      e.target.value = ""; // Reset input
+      e.target.value = "";
     }
   };
 
-  const handleDeleteMaterial = async (filename: string) => {
+  const handleDelete = async (filename: string) => {
     try {
       await fetch(`${API_BASE}/materials?filename=${encodeURIComponent(filename)}`, {
         method: "DELETE",
+        headers: withSessionHeaders(),
       });
-      fetchData(); // Refresh materials list
-    } catch (err) {
+      void fetchData();
+    } catch {
       alert("Failed to delete material.");
     }
   };
 
+  const interactionCount = profile?.interaction_count ?? 0;
+  const studyLevel =
+    interactionCount >= 50 ? "Advanced" : interactionCount >= 20 ? "Intermediate" : interactionCount >= 5 ? "Getting Started" : "New Learner";
+
+  const fileCount = materials?.sources?.length ?? 0;
+
+  const providerLabel = provider?.provider || "Provider unavailable";
+
   return (
-    <div className="w-full md:w-64 flex-shrink-0 flex flex-col gap-4">
-      {/* System Status */}
-      <div className="glass-panel p-4">
-        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-          <Server className="w-4 h-4" /> System Status
-        </h3>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-300">LLM Provider</span>
-            <div className="flex items-center gap-1.5">
-              {provider?.connected ? (
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              ) : (
-                <XCircle className="w-3.5 h-3.5 text-red-400" />
-              )}
-              <span className="text-gray-100 font-medium capitalize">
-                {provider?.provider || "Loading..."}
-              </span>
-            </div>
+    <div className="sidebar-shell flex flex-col gap-4 h-full">
+      <div className="glass-panel sidebar-main flex-1 h-full rounded-[24px] overflow-hidden flex flex-col shadow-[0_12px_40px_rgba(0,0,0,0.3)] backdrop-blur-3xl border border-white/10">
+        <div className="sidebar-header border-b border-white/5 bg-black/20">
+          <div className="sidebar-brand-mark p-2.5 rounded-xl bg-indigo-500/20 border border-indigo-500/40 shadow-[0_0_15px_rgba(99,102,241,0.2)] flex items-center justify-center shrink-0">
+            <GraduationCap size={20} className="text-indigo-400" />
           </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-300">Cache</span>
-            <div className="flex items-center gap-1.5">
-              <Database className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="text-gray-100 font-medium">
-                {cache ? `${cache.items} items` : "..."}
-              </span>
-            </div>
+          <div className="min-w-0 flex-1 ml-1">
+            <p className="text-sm font-semibold text-white leading-tight">Study Dashboard</p>
+            <p className="text-[0.65rem] text-[var(--text-muted)] truncate">
+              Fast access to materials, progress, and support
+            </p>
           </div>
         </div>
-      </div>
 
-      {/* Knowledge Base */}
-      <div className="glass-panel p-4">
-        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-          <FileText className="w-4 h-4" /> Knowledge Base
-        </h3>
-        <div className="space-y-3">
-          <div className="text-xs text-gray-400">
-            {materials?.total_chunks || 0} extracted chunks
+        <div className="px-4 pb-3">
+          <button
+            type="button"
+            className="sidebar-primary-action sidebar-primary-action-compact"
+          >
+            <Sparkles size={16} />
+            <span>Start guided session</span>
+          </button>
+        </div>
+
+        <div className="sidebar-status-stack">
+          <div className="sidebar-status-row">
+            <span className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+              <Wifi size={14} className="text-[var(--text-dim)]" />
+              AI Connection
+            </span>
+            <span className={`sidebar-status-pill ${provider?.connected ? "online" : "offline"}`}>
+              {provider?.connected ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
+              {provider?.connected ? "Online" : "Offline"}
+            </span>
           </div>
-          
-          <div className="max-h-32 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-            {materials?.sources?.map((src) => (
-              <div key={src} className="flex items-center justify-between bg-[#1e293b]/50 rounded p-1.5">
-                <span className="text-xs text-gray-300 truncate max-w-[140px]" title={src}>
-                  {src}
-                </span>
-                <button
-                  onClick={() => handleDeleteMaterial(src)}
-                  className="text-gray-500 hover:text-red-400 transition"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+
+          <div className="sidebar-provider-row">
+            <span className="text-[0.65rem] uppercase tracking-wide text-[var(--text-dim)]">
+              Provider
+            </span>
+            <span className="text-[0.72rem] text-[var(--text-muted)] truncate text-right">
+              {providerLabel}
+            </span>
+          </div>
+        </div>
+
+        <div className="sidebar-divider" />
+
+        <div className="sidebar-body px-3 pb-3 space-y-3">
+          {/* Study Materials */}
+          <CollapsibleSection
+            title="Study Materials"
+            icon={BookOpen}
+            badge={
+              fileCount > 0 ? (
+                <span className="sidebar-badge">{fileCount}</span>
+              ) : undefined
+            }
+          >
+            <p className="text-xs text-[var(--text-muted)] mb-3 leading-relaxed">
+              Upload PDFs, notes, or slides so answers stay grounded in your class content.
+            </p>
+
+            {materials?.sources && materials.sources.length > 0 && (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[0.65rem] text-[var(--text-dim)] uppercase tracking-wide">
+                    {materials.sources.length} file{materials.sources.length !== 1 ? "s" : ""}
+                  </span>
+                  {materials.total_chunks > 0 && (
+                    <span className="text-[0.65rem] text-indigo-400 flex items-center gap-1">
+                      <Layers size={11} />
+                      {materials.total_chunks} chunks
+                    </span>
+                  )}
+                </div>
+                <div className="max-h-28 overflow-y-auto flex flex-col gap-1 mb-3">
+                  {materials.sources.map((src) => (
+                    <div key={src} className="sidebar-file-row flex justify-between items-center gap-2 group">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <FileText size={12} className="text-indigo-400 shrink-0" />
+                        <span
+                          className="text-[0.72rem] text-[var(--text-main)] truncate"
+                          title={src}
+                        >
+                          {src}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleDelete(src)}
+                        className="opacity-0 group-hover:opacity-100 p-0.5 text-[var(--text-dim)] hover:text-red-400 transition-all shrink-0"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <label
+              className={`sidebar-upload-btn flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-xs font-medium cursor-pointer transition-all ${
+                uploading
+                  ? "opacity-60 cursor-wait"
+                  : "hover:brightness-110 active:scale-[0.98]"
+              }`}
+              style={{
+                background: "rgba(99,102,241,0.12)",
+                border: "1px dashed rgba(99,102,241,0.4)",
+                color: "#a5b4fc",
+              }}
+            >
+              <Upload size={14} />
+              {uploading ? "Uploading…" : "Upload Document"}
+              <input
+                type="file"
+                accept=".txt,.md,.pdf,.docx,.pptx"
+                className="hidden"
+                onChange={handleUpload}
+                disabled={uploading}
+              />
+            </label>
+          </CollapsibleSection>
+
+          {/* Learning Profile */}
+          <CollapsibleSection title="Learning Profile" icon={User}>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="sidebar-metric-card text-center">
+                <p className="text-xl font-bold text-indigo-300">{interactionCount}</p>
+                <p className="text-[0.65rem] text-[var(--text-dim)] mt-0.5">Sessions</p>
               </div>
-            ))}
-          </div>
+              <div className="sidebar-metric-card text-center">
+                <p className="text-xs font-semibold text-purple-300 mt-1">{studyLevel}</p>
+                <p className="text-[0.65rem] text-[var(--text-dim)] mt-0.5">Level</p>
+              </div>
+            </div>
 
-          <label className="flex items-center justify-center gap-2 w-full bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 py-2 rounded-lg text-xs font-medium cursor-pointer transition">
-            <Upload className="w-3.5 h-3.5" />
-            {uploading ? "Uploading..." : "Upload Document"}
-            <input type="file" accept=".txt,.md,.pdf,.docx,.pptx" className="hidden" onChange={handleUpload} disabled={uploading} />
-          </label>
-        </div>
-      </div>
-
-      {/* Student Profile */}
-      <div className="glass-panel p-4 flex-1">
-        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-          <User className="w-4 h-4" /> Your Profile
-        </h3>
-        <div className="space-y-3">
-          <div className="text-xs text-gray-300 bg-[#1e293b]/50 p-2 rounded border border-[var(--border-color)]">
-            <span className="font-medium text-indigo-300">{profile?.interaction_count || 0}</span> interactions
-          </div>
-          <div className="text-xs text-gray-400 italic line-clamp-6 leading-relaxed">
-            {profile?.summary || "Ask some questions so the tutor can learn about you!"}
-          </div>
+            <div className="sidebar-summary-card flex items-start gap-2 rounded-lg p-3">
+              <User size={14} className="text-purple-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-[var(--text-muted)] leading-relaxed line-clamp-5">
+                {profile?.summary?.replace("[Student Model] ", "") ||
+                  "Ask a few questions so the tutor can adapt to your pace and topic."}
+              </p>
+            </div>
+          </CollapsibleSection>
         </div>
       </div>
     </div>

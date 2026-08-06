@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { BookOpen, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
+import { BookOpen, RefreshCw, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -18,14 +18,13 @@ export default function Flashcards() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [sourceText, setSourceText] = useState("");
+  const [studied, setStudied] = useState<Set<number>>(new Set());
 
   const fetchFlashcards = async () => {
     try {
       const res = await fetch(`${API_BASE}/flashcards`);
       const data = await res.json();
-      if (data.flashcards) {
-        setFlashcards(data.flashcards);
-      }
+      if (data.flashcards) setFlashcards(data.flashcards);
     } catch (err) {
       console.error("Failed to fetch flashcards", err);
     } finally {
@@ -34,12 +33,11 @@ export default function Flashcards() {
   };
 
   useEffect(() => {
-    fetchFlashcards();
+    void fetchFlashcards();
   }, []);
 
   const handleGenerate = async () => {
     if (!sourceText.trim()) return;
-
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/flashcards/generate`, {
@@ -53,15 +51,21 @@ export default function Flashcards() {
         setCurrentIndex(data.flashcards.length - data.added_count);
         setIsFlipped(false);
         setSourceText("");
+        setStudied(new Set());
       }
-    } catch (err) {
+    } catch {
       alert("Failed to generate flashcards.");
     } finally {
       setLoading(false);
     }
   };
 
+  const markStudied = () => {
+    setStudied((prev) => new Set(prev).add(currentIndex));
+  };
+
   const nextCard = () => {
+    markStudied();
     setIsFlipped(false);
     setTimeout(() => {
       setCurrentIndex((prev) => (prev + 1) % flashcards.length);
@@ -75,98 +79,156 @@ export default function Flashcards() {
     }, 150);
   };
 
+  const progressPct = flashcards.length > 0 ? (studied.size / flashcards.length) * 100 : 0;
+
   return (
-    <div className="flex flex-col h-[85vh] glass-panel p-6 overflow-y-auto">
-      <div className="flex items-center gap-2 pb-4 border-b border-[var(--border-color)]">
-        <BookOpen className="w-5 h-5 text-indigo-400" />
-        <h2 className="font-semibold text-lg gradient-text">Flashcards</h2>
+    <div className="flex flex-col h-full glass-panel overflow-hidden">
+      <div className="panel-header px-5 pt-5 shrink-0">
+        <BookOpen className="w-5 h-5 text-amber-400" />
+        <div>
+          <h2 className="gradient-text">Flashcards</h2>
+          <p className="text-xs text-[var(--text-muted)] mt-0.5">Flip, review, and memorize key concepts</p>
+        </div>
       </div>
 
-      {/* Generator Controls */}
-      <div className="flex flex-col sm:flex-row gap-4 py-4 border-b border-[var(--border-color)]">
-        <input
-          type="text"
-          value={sourceText}
-          onChange={(e) => setSourceText(e.target.value)}
-          placeholder="Paste some text to generate flashcards from..."
-          className="flex-1 bg-[#1e293b]/80 border border-[var(--border-color)] rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
-        />
-        <button
-          onClick={handleGenerate}
-          disabled={loading || !sourceText.trim()}
-          className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-5 py-2 rounded-xl text-sm font-medium transition flex items-center justify-center gap-2 whitespace-nowrap"
-        >
-          {loading && <RefreshCw className="w-4 h-4 animate-spin" />}
-          {loading ? "Generating..." : "Generate Cards"}
-        </button>
+      {/* Generator */}
+      <div className="px-5 py-4 border-b border-[var(--border-color)] shrink-0">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <input
+            type="text"
+            value={sourceText}
+            onChange={(e) => setSourceText(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
+            placeholder="Paste lecture notes or text to generate flashcards…"
+            className="input-field flex-1"
+          />
+          <button
+            onClick={handleGenerate}
+            disabled={loading || !sourceText.trim()}
+            className="btn-primary shrink-0 whitespace-nowrap"
+            style={{ background: "linear-gradient(135deg, #d97706, #f59e0b)" }}
+          >
+            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            {loading ? "Generating…" : "Generate Cards"}
+          </button>
+        </div>
+
+        {flashcards.length > 0 && (
+          <div className="mt-3">
+            <div className="flex justify-between text-xs text-[var(--text-muted)] mb-1.5">
+              <span>Card {currentIndex + 1} of {flashcards.length}</span>
+              <span>{studied.size} reviewed · {Math.round(progressPct)}%</span>
+            </div>
+            <div className="progress-bar">
+              <div
+                className="progress-bar-fill"
+                style={{ width: `${progressPct}%`, background: "linear-gradient(90deg, #d97706, #fbbf24)" }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Flashcard Viewer */}
-      <div className="flex-1 flex flex-col items-center justify-center py-8">
+      {/* Viewer */}
+      <div className="flex-1 flex flex-col items-center justify-center py-6 px-5 overflow-y-auto">
         {loadingInitial ? (
-          <RefreshCw className="w-8 h-8 animate-spin text-indigo-500" />
+          <RefreshCw className="w-10 h-10 animate-spin text-amber-400" />
         ) : flashcards.length === 0 ? (
-          <div className="text-center text-gray-400">
-            No flashcards yet. Generate some from text above!
+          <div className="empty-state">
+            <div className="empty-state-icon">
+              <BookOpen className="w-8 h-8 text-amber-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-white">No flashcards yet</h3>
+            <p className="text-sm text-[var(--text-muted)] max-w-sm">
+              Paste your study notes above and AI will create flip cards to help you memorize key facts.
+            </p>
           </div>
         ) : (
           <div className="w-full max-w-lg flex flex-col items-center gap-6">
-            <div className="text-sm text-gray-400">
-              Card {currentIndex + 1} of {flashcards.length}
-            </div>
-
-            {/* Flashcard */}
+            {/* Card */}
             <div
-              className="relative w-full aspect-[3/2] cursor-pointer"
-              style={{ perspective: "1000px" }}
+              className="relative w-full aspect-[5/3] cursor-pointer perspective-1000 flashcard-hint"
               onClick={() => setIsFlipped(!isFlipped)}
             >
               <div
                 className="w-full h-full relative transition-transform duration-500"
-                style={{ transformStyle: "preserve-3d", transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
+                style={{
+                  transformStyle: "preserve-3d",
+                  transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
+                }}
               >
                 {/* Front */}
-                <div 
-                  className="absolute w-full h-full bg-[#1e293b]/80 border border-[var(--border-color)] rounded-2xl p-6 flex items-center justify-center text-center shadow-xl"
-                  style={{ backfaceVisibility: "hidden" }}
+                <div
+                  className="absolute w-full h-full rounded-2xl p-6 flex flex-col items-center justify-center text-center shadow-xl"
+                  style={{
+                    backfaceVisibility: "hidden",
+                    background: "linear-gradient(145deg, rgba(30,41,59,0.9) 0%, rgba(15,23,42,0.95) 100%)",
+                    border: "1px solid rgba(245, 158, 11, 0.2)",
+                  }}
                 >
-                  <h3 className="text-xl font-medium text-gray-100">
+                  <span className="text-[0.65rem] uppercase tracking-widest text-amber-400/70 mb-3 font-semibold">
+                    Question
+                  </span>
+                  <div className="text-lg md:text-xl font-medium text-gray-100 prose prose-invert max-w-none">
                     <ReactMarkdown>{flashcards[currentIndex].front}</ReactMarkdown>
-                  </h3>
+                  </div>
+                  <p className="text-[0.65rem] text-[var(--text-dim)] mt-4">Click to reveal answer</p>
                 </div>
+
                 {/* Back */}
-                <div 
-                  className="absolute w-full h-full bg-indigo-950/40 border border-indigo-500/30 rounded-2xl p-6 flex items-center justify-center text-center shadow-xl"
-                  style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
+                <div
+                  className="absolute w-full h-full rounded-2xl p-6 flex flex-col items-center justify-center text-center shadow-xl"
+                  style={{
+                    backfaceVisibility: "hidden",
+                    transform: "rotateY(180deg)",
+                    background: "linear-gradient(145deg, rgba(120,53,15,0.4) 0%, rgba(30,41,59,0.9) 100%)",
+                    border: "1px solid rgba(245, 158, 11, 0.35)",
+                  }}
                 >
-                  <div className="text-lg text-indigo-200">
+                  <span className="text-[0.65rem] uppercase tracking-widest text-amber-300/70 mb-3 font-semibold">
+                    Answer
+                  </span>
+                  <div className="text-base md:text-lg text-amber-100 prose prose-invert max-w-none">
                     <ReactMarkdown>{flashcards[currentIndex].back}</ReactMarkdown>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Navigation Controls */}
-            <div className="flex items-center gap-4">
+            {/* Controls */}
+            <div className="flex items-center gap-3">
               <button
                 onClick={prevCard}
-                className="p-2 rounded-full bg-[#1e293b] border border-[var(--border-color)] hover:bg-gray-800 text-gray-300 transition"
+                className="p-2.5 rounded-full bg-slate-800/80 border border-[var(--border-color)] hover:bg-slate-700 text-gray-300 transition active:scale-95"
+                title="Previous card"
               >
-                <ChevronLeft className="w-6 h-6" />
+                <ChevronLeft className="w-5 h-5" />
               </button>
+
               <button
                 onClick={() => setIsFlipped(!isFlipped)}
-                className="px-6 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition shadow-lg shadow-indigo-500/25"
+                className="px-6 py-2.5 rounded-xl font-semibold text-white transition active:scale-95 flex items-center gap-2"
+                style={{
+                  background: "linear-gradient(135deg, #d97706, #f59e0b)",
+                  boxShadow: "0 4px 14px rgba(245, 158, 11, 0.3)",
+                }}
               >
+                <RefreshCw className="w-4 h-4" />
                 Flip
               </button>
+
               <button
                 onClick={nextCard}
-                className="p-2 rounded-full bg-[#1e293b] border border-[var(--border-color)] hover:bg-gray-800 text-gray-300 transition"
+                className="p-2.5 rounded-full bg-slate-800/80 border border-[var(--border-color)] hover:bg-slate-700 text-gray-300 transition active:scale-95"
+                title="Next card"
               >
-                <ChevronRight className="w-6 h-6" />
+                <ChevronRight className="w-5 h-5" />
               </button>
             </div>
+
+            <p className="text-[0.65rem] text-[var(--text-dim)]">
+              Tip: Use ← → arrow keys or click the card to flip
+            </p>
           </div>
         )}
       </div>

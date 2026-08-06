@@ -1,5 +1,5 @@
 {
-  "interaction_count": 146,
+  "interaction_count": 193,
   "flashcards": [
     {
       "front": "Photosynthesis",
@@ -32,6 +32,22 @@
     {
       "front": "Topic",
       "back": "A matter dealt with in a text, discourse, or conversation; the subject of discussion."
+    },
+    {
+      "front": "Copyright",
+      "back": "A legal right that grants the creator of an original work exclusive rights to its use and distribution."
+    },
+    {
+      "front": "Intellectual Property",
+      "back": "A category of property that includes intangible creations of the human intellect, such as inventions, literary and artistic works, and symbols."
+    },
+    {
+      "front": "Fair Use",
+      "back": "A legal doctrine that permits limited use of copyrighted material without acquiring permission from the rights holder."
+    },
+    {
+      "front": "Public Domain",
+      "back": "The state of creative works that are not protected by intellectual property laws and may be used by anyone without permission."
     }
   ],
   "topic_stats": {
@@ -48,7 +64,7 @@
       "quiz_total": 0
     },
     "general": {
-      "questions_asked": 97,
+      "questions_asked": 126,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -78,7 +94,7 @@
       "quiz_total": 0
     },
     "analyse": {
-      "questions_asked": 7,
+      "questions_asked": 9,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -132,7 +148,7 @@
       "quiz_total": 0
     },
     "okay": {
-      "questions_asked": 2,
+      "questions_asked": 3,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -144,7 +160,7 @@
       "quiz_total": 0
     },
     "teach": {
-      "questions_asked": 3,
+      "questions_asked": 5,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -240,7 +256,7 @@
       "quiz_total": 0
     },
     "there": {
-      "questions_asked": 1,
+      "questions_asked": 2,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -288,6 +304,120 @@
       "quiz_total": 0
     },
     "thank": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "newton": {
+      "questions_asked": 3,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "summarize newton": {
+      "questions_asked": 3,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "solve": {
+      "questions_asked": 2,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "biology": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "continue": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "acquiring knowledge": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "authority": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "empirical": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "intuition": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "knowing": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "methods": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "rational": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "scientific": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "tenacity": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "research": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "types": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "the basic beliefs": {
+      "questions_asked": 3,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "hybrid": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "next": {
       "questions_asked": 1,
       "quiz_attempts": 0,
       "quiz_correct": 0,
