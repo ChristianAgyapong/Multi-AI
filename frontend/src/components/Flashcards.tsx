@@ -19,25 +19,53 @@ export default function Flashcards() {
   const [isFlipped, setIsFlipped] = useState(false);
   const [sourceText, setSourceText] = useState("");
   const [studied, setStudied] = useState<Set<number>>(new Set());
-
-  const fetchFlashcards = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/flashcards`);
-      const data = await res.json();
-      if (data.flashcards) setFlashcards(data.flashcards);
-    } catch (err) {
-      console.error("Failed to fetch flashcards", err);
-    } finally {
-      setLoadingInitial(false);
-    }
-  };
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void fetchFlashcards();
+    let ignore = false;
+    fetch(`${API_BASE}/flashcards`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!ignore && data.flashcards) setFlashcards(data.flashcards);
+      })
+      .catch(() => setError("Could not load flashcards. The AI server may be offline."))
+      .finally(() => {
+        if (!ignore) setLoadingInitial(false);
+      });
+    return () => { ignore = true; };
   }, []);
+
+  // Keyboard navigation: arrows move between cards, space flips.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName)) return;
+      if (flashcards.length === 0) return;
+
+      if (e.key === "ArrowRight") {
+        setStudied((prev) => new Set(prev).add(currentIndex));
+        setIsFlipped(false);
+        setTimeout(() => {
+          setCurrentIndex((i) => (i + 1) % flashcards.length);
+        }, 150);
+      } else if (e.key === "ArrowLeft") {
+        setIsFlipped(false);
+        setTimeout(() => {
+          setCurrentIndex((i) => (i - 1 + flashcards.length) % flashcards.length);
+        }, 150);
+      } else if (e.key === " ") {
+        e.preventDefault();
+        setIsFlipped((f) => !f);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [flashcards.length, currentIndex]);
 
   const handleGenerate = async () => {
     if (!sourceText.trim()) return;
+    setError(null);
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/flashcards/generate`, {
@@ -54,7 +82,7 @@ export default function Flashcards() {
         setStudied(new Set());
       }
     } catch {
-      alert("Failed to generate flashcards.");
+      setError("Failed to generate flashcards.");
     } finally {
       setLoading(false);
     }
@@ -112,6 +140,12 @@ export default function Flashcards() {
             {loading ? "Generating…" : "Generate Cards"}
           </button>
         </div>
+
+        {error && (
+          <div className="mt-3 px-4 py-2.5 rounded-xl text-xs font-medium text-red-200 bg-red-500/10 border border-red-500/20">
+            {error}
+          </div>
+        )}
 
         {flashcards.length > 0 && (
           <div className="mt-3">
@@ -227,7 +261,7 @@ export default function Flashcards() {
             </div>
 
             <p className="text-[0.65rem] text-[var(--text-dim)]">
-              Tip: Use ← → arrow keys or click the card to flip
+              Tip: ← → arrow keys navigate, Space flips, or click the card
             </p>
           </div>
         )}

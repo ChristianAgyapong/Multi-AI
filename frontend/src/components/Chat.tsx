@@ -127,7 +127,10 @@ export default function Chat() {
     const userImg = imagePreview;
     setInput("");
     setImagePreview(null);
-    if (textareaRef.current) textareaRef.current.style.height = "auto";
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.focus();
+    }
 
     const newMessages: Message[] = [
       ...messages,
@@ -164,7 +167,6 @@ body: JSON.stringify({
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let assistantText = "";
 
       while (true) {
         const { value, done } = await reader.read();
@@ -186,24 +188,17 @@ body: JSON.stringify({
             }
             if (msg.type === "done") break;
             if (msg.type === "token" && msg.text) {
-              assistantText += msg.text;
               setMessages((prev) => {
-                const updated = [...prev];
-                updated[updated.length - 1].content = assistantText;
-                return updated;
+                const last = prev[prev.length - 1];
+                return [...prev.slice(0, -1), { ...last, content: last.content + msg.text }];
               });
             }
           } catch {
             if (raw === "[DONE]") break;
-            if (raw.startsWith("[ERROR:")) {
-              assistantText += `\n\n⚠️ ${raw}`;
-            } else {
-              assistantText += raw;
-            }
             setMessages((prev) => {
-              const updated = [...prev];
-              updated[updated.length - 1].content = assistantText;
-              return updated;
+              const last = prev[prev.length - 1];
+              const addition = raw.startsWith("[ERROR:") ? `\n\n⚠️ ${raw}` : raw;
+              return [...prev.slice(0, -1), { ...last, content: last.content + addition }];
             });
           }
         }
@@ -213,9 +208,8 @@ body: JSON.stringify({
       if (err instanceof DOMException && err.name === "AbortError") return;
       const errorMessage = err instanceof Error ? err.message : String(err);
       setMessages((prev) => {
-        const updated = [...prev];
-        updated[updated.length - 1].content = `⚠️ Network Error: ${errorMessage}. Please make sure you are connected to the internet and the AI server is online.`;
-        return updated;
+        const last = prev[prev.length - 1];
+        return [...prev.slice(0, -1), { ...last, content: `⚠️ Network Error: ${errorMessage}. Please make sure you are connected to the internet and the AI server is online.` }];
       });
     } finally {
       setIsStreaming(false);
@@ -338,8 +332,9 @@ body: JSON.stringify({
                       {m.role === "assistant" && m.content && (
                         <button
                           onClick={() => handleCopy(idx, m.content)}
-                          className="message-actions absolute top-2.5 right-2.5 p-1.5 rounded-lg text-gray-500 hover:text-indigo-300 hover:bg-white/5 transition-colors"
+                          className="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-gray-500 hover:text-indigo-300 hover:bg-white/5 transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
                           title={copiedIdx === idx ? "Copied!" : "Copy response"}
+                          aria-label={copiedIdx === idx ? "Copied" : "Copy response"}
                         >
                           {copiedIdx === idx ? (
                             <Check className="w-3.5 h-3.5 text-emerald-400" />

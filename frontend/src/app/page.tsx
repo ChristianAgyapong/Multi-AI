@@ -73,7 +73,7 @@ export default function Home() {
         {/* Sidebar — desktop only */}
         {isSidebarOpen && (
           <aside className="sidebar-desktop w-[320px] shrink-0 z-10 flex flex-col h-full overflow-y-auto">
-            <Sidebar />
+            <Sidebar onStartSession={() => setActiveTab("chat")} />
           </aside>
         )}
 

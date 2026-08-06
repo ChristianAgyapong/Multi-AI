@@ -32,10 +32,12 @@ export default function Quiz() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
   const handleGenerate = async () => {
     if (!topic.trim()) return;
+    setError(null);
     setLoading(true);
     setQuestions([]);
     setUserAnswers({});
@@ -57,7 +59,7 @@ export default function Quiz() {
       const quizData = data.quiz ?? data;
       if (quizData.questions) setQuestions(quizData.questions);
     } catch {
-      alert("Failed to generate quiz. Make sure the FastAPI backend is running!");
+      setError("Failed to generate quiz. Make sure the FastAPI backend is running.");
     } finally {
       setLoading(false);
     }
@@ -166,6 +168,12 @@ const calculateScore = () => {
             <div className="progress-bar">
               <div className="progress-bar-fill" style={{ width: `${progressPct}%`, background: "linear-gradient(90deg, #059669, #34d399)" }} />
             </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-4 px-4 py-2.5 rounded-xl text-xs font-medium text-red-200 bg-red-500/10 border border-red-500/20">
+            {error}
           </div>
         )}
       </div>

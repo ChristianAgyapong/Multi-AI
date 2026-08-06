@@ -30,6 +30,7 @@ export default function Debate() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [sessionActive, setSessionActive] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -42,6 +43,7 @@ export default function Debate() {
 
   const startDebate = async () => {
     if (!topic.trim()) return;
+    setError(null);
     setLoading(true);
     setMessages([]);
     setSessionActive(true);
@@ -55,7 +57,7 @@ export default function Debate() {
       const data = await res.json();
       if (data.fellow) setMessages([{ role: "fellow", content: data.fellow }]);
     } catch {
-      alert("Failed to start debate. Is the backend running?");
+      setError("Failed to start debate. Is the backend running?");
       setSessionActive(false);
     } finally {
       setLoading(false);
@@ -64,6 +66,7 @@ export default function Debate() {
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
+    setError(null);
     const studentText = input;
     setInput("");
 
@@ -99,7 +102,7 @@ export default function Debate() {
         return updated;
       });
     } catch {
-      alert("Failed to send message.");
+      setError("Failed to send message.");
     } finally {
       setLoading(false);
     }
@@ -209,6 +212,12 @@ export default function Debate() {
                 {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
                 {loading ? "Starting…" : "Start Debate Session"}
               </button>
+
+              {error && (
+                <div className="px-4 py-2.5 rounded-xl text-xs font-medium text-red-200 bg-red-500/10 border border-red-500/20">
+                  {error}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -257,6 +266,11 @@ export default function Debate() {
           </div>
 
           <div className="shrink-0 px-4 py-3 border-t border-[var(--border-color)] bg-slate-900/40">
+            {error && (
+              <div className="max-w-3xl mx-auto mb-2 px-4 py-2.5 rounded-xl text-xs font-medium text-red-200 bg-red-500/10 border border-red-500/20">
+                {error}
+              </div>
+            )}
             <div className="flex items-end gap-2 max-w-3xl mx-auto">
               <input
                 type="text"

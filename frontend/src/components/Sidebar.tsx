@@ -77,11 +77,12 @@ function CollapsibleSection({
   );
 }
 
-export default function Sidebar() {
+export default function Sidebar({ onStartSession }: { onStartSession?: () => void }) {
   const [provider, setProvider] = useState<ProviderStatus | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [materials, setMaterials] = useState<MaterialsStats | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
@@ -114,6 +115,7 @@ export default function Sidebar() {
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setError(null);
     setUploading(true);
     const formData = new FormData();
     formData.append("file", file);
@@ -127,7 +129,7 @@ export default function Sidebar() {
       setStoredSessionId(data.session_id);
       void fetchData();
     } catch {
-      alert("Failed to upload material.");
+      setError("Failed to upload material.");
     } finally {
       setUploading(false);
       e.target.value = "";
@@ -135,6 +137,7 @@ export default function Sidebar() {
   };
 
   const handleDelete = async (filename: string) => {
+    setError(null);
     try {
       await fetch(`${API_BASE}/materials?filename=${encodeURIComponent(filename)}`, {
         method: "DELETE",
@@ -142,7 +145,7 @@ export default function Sidebar() {
       });
       void fetchData();
     } catch {
-      alert("Failed to delete material.");
+      setError("Failed to delete material.");
     }
   };
 
@@ -172,6 +175,7 @@ export default function Sidebar() {
         <div className="px-4 pb-3">
           <button
             type="button"
+            onClick={onStartSession}
             className="sidebar-primary-action sidebar-primary-action-compact"
           >
             <Sparkles size={16} />
@@ -231,7 +235,13 @@ export default function Sidebar() {
                     </span>
                   )}
                 </div>
-                <div className="max-h-28 overflow-y-auto flex flex-col gap-1 mb-3">
+                {error && (
+                <div className="mb-3 px-3 py-2 rounded-lg text-[0.75rem] font-medium text-red-200 bg-red-500/10 border border-red-500/20">
+                  {error}
+                </div>
+              )}
+
+              <div className="max-h-28 overflow-y-auto flex flex-col gap-1 mb-3">
                   {materials.sources.map((src) => (
                     <div key={src} className="sidebar-file-row flex justify-between items-center gap-2 group">
                       <div className="flex items-center gap-1.5 min-w-0">
@@ -245,7 +255,7 @@ export default function Sidebar() {
                       </div>
                       <button
                         onClick={() => handleDelete(src)}
-                        className="opacity-0 group-hover:opacity-100 p-0.5 text-[var(--text-dim)] hover:text-red-400 transition-all shrink-0"
+                        className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-0.5 text-[var(--text-dim)] hover:text-red-400 transition-all shrink-0"
                       >
                         <Trash2 size={12} />
                       </button>
