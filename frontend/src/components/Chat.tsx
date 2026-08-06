@@ -220,15 +220,6 @@ body: JSON.stringify({
   return (
     <div className="chat-shell flex flex-col h-full glass-panel relative overflow-hidden" onPaste={handlePaste}>
       <div className="chat-toolbar shrink-0">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-sm font-semibold text-white leading-tight">
-            <Sparkles className="w-4 h-4 text-indigo-300 shrink-0" />
-            <span>Chat</span>
-          </div>
-          <p className="chat-toolbar-subtitle">Ask questions, upload screenshots, get step-by-step help</p>
-        </div>
-
-        <div className="flex items-center gap-3 flex-wrap justify-between md:justify-end">
           <div className="flex items-center gap-1.5 flex-wrap">
           {MODES.map(({ id, label }) => (
             <button
@@ -241,14 +232,15 @@ body: JSON.stringify({
             </button>
           ))}
           </div>
-          <button
-            onClick={() => setMessages([])}
-            className="p-2 text-[var(--text-muted)] hover:text-red-400 rounded-xl hover:bg-white/5 transition-colors"
-            title="Clear chat"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
+          {messages.length > 0 && (
+            <button
+              onClick={() => setMessages([])}
+              className="p-2 text-[var(--text-muted)] hover:text-red-400 rounded-xl hover:bg-white/5 transition-colors"
+              title="Clear chat"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
       </div>
 
       {/* Messages List */}

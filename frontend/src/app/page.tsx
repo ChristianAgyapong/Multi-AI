@@ -14,7 +14,6 @@ import {
   GraduationCap,
   PanelLeftClose,
   PanelLeftOpen,
-  Sparkles,
 } from "lucide-react";
 
 type Tab = "chat" | "quiz" | "flashcards" | "debate";
@@ -24,43 +23,36 @@ const tabs: {
   label: string;
   shortLabel: string;
   Icon: React.ElementType;
-  description: string;
 }[] = [
   {
     id: "chat",
     label: "Chat",
     shortLabel: "Chat",
     Icon: MessageSquare,
-    description: "Ask questions, upload screenshots, get step-by-step help",
   },
   {
     id: "quiz",
     label: "Quiz",
     shortLabel: "Quiz",
     Icon: HelpCircle,
-    description: "Test your knowledge with AI-generated practice questions",
   },
   {
     id: "flashcards",
     label: "Flashcards",
     shortLabel: "Cards",
     Icon: BookOpen,
-    description: "Review key concepts with flip cards built from your notes",
   },
   {
     id: "debate",
     label: "Debate",
     shortLabel: "Debate",
     Icon: Users,
-    description: "Master topics by correcting a fellow student (Feynman technique)",
   },
 ];
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("chat");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
-  const activeTabInfo = tabs.find((t) => t.id === activeTab)!;
 
   return (
     <>
@@ -123,16 +115,6 @@ export default function Home() {
               ))}
             </nav>
           </header>
-
-          {/* Tab context banner */}
-          <div className="flex items-center gap-2 px-1 animate-fade-in-up">
-            <Sparkles size={14} className="text-indigo-400 shrink-0" />
-            <p className="text-xs text-[var(--text-muted)]">
-              <span className="font-semibold text-[var(--text-main)]">{activeTabInfo.label}</span>
-              {" — "}
-              {activeTabInfo.description}
-            </p>
-          </div>
 
           {/* Tab panel */}
           <div className="flex-1 min-h-0 relative flex flex-col">
