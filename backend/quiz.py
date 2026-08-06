@@ -155,7 +155,7 @@ def _generate_batch(
     max_retries = 2
     last_err = None
 
-    max_tokens = min(160 * n + 120, 1800)
+    max_tokens = min(160 * n + 120, 3000)
 
     for attempt in range(max_retries):
         try:
@@ -221,7 +221,7 @@ def generate_quiz(
     BATCH_SIZE = 6
 
     # Token budget: questions + longer explanations that teach the concept.
-    max_tokens = min(160 * num_questions + 120, 1800)
+    max_tokens = min(160 * num_questions + 120, 3000)
 
     if num_questions <= BATCH_SIZE:
         # Single call for small quizzes (<=6 questions)

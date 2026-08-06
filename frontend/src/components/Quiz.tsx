@@ -150,11 +150,11 @@ export default function Quiz() {
           <input
             type="number"
             min={1}
-            max={25}
+            max={30}
             value={numQuestions}
             onChange={(e) => {
               const val = parseInt(e.target.value, 10);
-              setNumQuestions(Number.isNaN(val) ? 1 : Math.max(1, Math.min(25, val)));
+              setNumQuestions(Number.isNaN(val) ? 1 : Math.max(1, Math.min(30, val)));
             }}
             placeholder="Questions"
             className="input-field quiz-select"

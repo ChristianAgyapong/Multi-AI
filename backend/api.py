@@ -130,7 +130,7 @@ class AskRequest(BaseModel):
 
 class QuizRequest(BaseModel):
     topic: str
-    num_questions: int = Field(default=5, ge=1, le=25)
+    num_questions: int = Field(default=5, ge=1, le=30)
     use_context: bool = True
     session_id: str | None = None
     difficulty: str | None = None
