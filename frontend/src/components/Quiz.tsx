@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
+import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
 import { HelpCircle, CheckCircle2, XCircle, RefreshCw, Sparkles } from "lucide-react";
 import { setStoredSessionId, withSessionHeaders } from "@/lib/session";
@@ -215,7 +216,7 @@ const calculateScore = () => {
             <h3 className="quiz-question font-medium text-gray-100 flex items-start gap-3">
               <span className="quiz-question-index text-emerald-400 font-bold shrink-0">Q{idx + 1}.</span>
               <span className="quiz-question-body">
-                <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
                   {q.question}
                 </ReactMarkdown>
               </span>

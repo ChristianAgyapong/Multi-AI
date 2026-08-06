@@ -3,6 +3,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Users, Send, RefreshCw, Trash2, Bot, GraduationCap, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import remarkGfm from "remark-gfm";
+import rehypeKatex from "rehype-katex";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -247,7 +250,9 @@ export default function Debate() {
                   </div>
                   <div className={`max-w-[88%] rounded-2xl p-4 border ${style.bg}`}>
                     <div className="prose prose-invert max-w-none text-sm leading-relaxed">
-                      <ReactMarkdown>{m.content}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
+                        {m.content}
+                      </ReactMarkdown>
                     </div>
                   </div>
                 </div>

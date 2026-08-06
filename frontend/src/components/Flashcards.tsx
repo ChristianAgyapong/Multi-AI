@@ -3,6 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { BookOpen, RefreshCw, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import remarkGfm from "remark-gfm";
+import rehypeKatex from "rehype-katex";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -204,7 +207,9 @@ export default function Flashcards() {
                     Question
                   </span>
                   <div className="text-lg md:text-xl font-medium text-gray-100 prose prose-invert max-w-none">
-                    <ReactMarkdown>{flashcards[currentIndex].front}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
+                      {flashcards[currentIndex].front}
+                    </ReactMarkdown>
                   </div>
                   <p className="text-[0.65rem] text-[var(--text-dim)] mt-4">Click to reveal answer</p>
                 </div>
@@ -223,7 +228,9 @@ export default function Flashcards() {
                     Answer
                   </span>
                   <div className="text-base md:text-lg text-amber-100 prose prose-invert max-w-none">
-                    <ReactMarkdown>{flashcards[currentIndex].back}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
+                      {flashcards[currentIndex].back}
+                    </ReactMarkdown>
                   </div>
                 </div>
               </div>
