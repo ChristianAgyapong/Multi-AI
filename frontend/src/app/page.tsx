@@ -56,7 +56,7 @@ export default function Home() {
 
   return (
     <>
-      <main className="app-main relative flex h-screen max-w-[1600px] mx-auto gap-5 md:gap-8 p-4 md:p-8 overflow-hidden">
+      <main className="app-main relative flex h-screen max-w-[1600px] mx-auto gap-2 md:gap-3 p-3 md:p-5 overflow-hidden">
         {/* Ambient glow */}
         <div className="glow-bg" style={{ top: "-150px", left: "-150px", opacity: 0.22 }} />
         <div className="glow-bg" style={{ bottom: "-150px", right: "-150px", opacity: 0.15, animationDelay: "5s" }} />
@@ -70,9 +70,9 @@ export default function Home() {
         )}
 
         {/* Main column */}
-        <div className="flex-1 min-w-0 z-10 flex flex-col gap-4 md:gap-6">
+        <div className="flex-1 min-w-0 z-10 flex flex-col gap-2 md:gap-3">
           {/* Header */}
-          <header className="glass-panel px-5 py-4 md:px-8 md:py-6 flex items-center justify-between flex-wrap gap-4">
+          <header className="glass-panel px-4 py-3 md:px-6 md:py-3 flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}

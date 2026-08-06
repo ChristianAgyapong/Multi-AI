@@ -219,7 +219,7 @@ body: JSON.stringify({
   };
 
   return (
-    <div className="chat-shell flex flex-col h-full glass-panel relative overflow-hidden" onPaste={handlePaste}>
+    <div className="chat-shell flex flex-col h-full relative overflow-hidden" onPaste={handlePaste}>
       <div className={`chat-toolbar shrink-0 ${messages.length === 0 ? "justify-center" : "justify-end"}`}>
           <div className="flex items-center gap-1.5 flex-wrap">
           {MODES.map(({ id, label }) => (
@@ -245,7 +245,7 @@ body: JSON.stringify({
       </div>
 
       {/* Messages List */}
-      <div className="chat-stage flex-1 overflow-y-auto px-4 py-4 md:px-8 bg-transparent">
+      <div className="chat-stage flex-1 overflow-y-auto px-4 py-2 md:px-8 bg-transparent">
         <div className="chat-stage-inner max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto flex flex-col space-y-4">
           {messages.length === 0 ? (
             <div className="chat-empty flex flex-col items-center justify-center min-h-[62vh] text-center text-gray-400 gap-5 animate-fade-in-up px-2">
@@ -374,7 +374,7 @@ body: JSON.stringify({
       </div>
 
       {/* Input Bar Area (Pinned to Bottom of Chat) */}
-      <div className="chat-composer-shell flex-shrink-0 p-4 z-20">
+      <div className="chat-composer-shell flex-shrink-0 py-3 px-4 z-20">
         <div className="max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto flex flex-col gap-2">
 
           {/* Image Preview Thumbnail */}

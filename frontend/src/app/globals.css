@@ -113,14 +113,14 @@ body {
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 0.9rem 1rem;
-  border-bottom: 1px solid var(--border-color);
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.72), rgba(15, 23, 42, 0.38));
-  backdrop-filter: blur(18px);
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border-bottom: none;
+  backdrop-filter: none;
 }
 
 .chat-stage {
-  background: radial-gradient(ellipse at top, rgba(99, 102, 241, 0.06), transparent 55%);
+  background: transparent;
 }
 
 .chat-stage-inner {
@@ -150,9 +150,9 @@ body {
 }
 
 .chat-composer-shell {
-  border-top: 1px solid var(--border-color);
-  background: linear-gradient(180deg, rgba(11, 15, 25, 0.72), rgba(11, 15, 25, 0.95));
-  backdrop-filter: blur(20px);
+  border-top: none;
+  background: transparent;
+  backdrop-filter: none;
 }
 
 .chat-composer {
