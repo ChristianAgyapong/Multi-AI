@@ -195,9 +195,38 @@ async def ask_stream(req: AskRequest, request: Request):
         queue: asyncio.Queue = asyncio.Queue()
 
         def worker():
-            """Run the sync generator and push each token to the queue immediately."""
+            """Run the sync generator and push each token to the queue immediately.
+
+            On a 429 rate-limit error, retry the stream once after a short backoff,
+            then fall back to the non-streaming path (which has multi-model fallbacks).
+            """
+            stream_errors = []
+            for attempt in range(2):
+                try:
+                    for token in ask_tutor_stream(
+                        req.question,
+                        image_bytes=image_bytes,
+                        image_media_type=req.image_media_type,
+                        context_chunks=context_chunks,
+                        history=req.history,
+                        agent_mode=req.agent_mode,
+                        student_model_summary=student_model.get_summary(),
+                    ):
+                        asyncio.run_coroutine_threadsafe(queue.put(("token", token)), loop)
+                    asyncio.run_coroutine_threadsafe(queue.put(("done", None)), loop)
+                    return
+                except Exception as e:
+                    error_text = str(e)
+                    stream_errors.append(error_text)
+                    if "429" in error_text and attempt == 0:
+                        print("[LLM] Stream rate-limited (429), retrying in 2s...")
+                        time.sleep(2)
+                        continue
+                    break
+
+            # Fall back to non-streaming; it has model fallbacks and 429 retry logic.
             try:
-                for token in ask_tutor_stream(
+                answer = ask_tutor(
                     req.question,
                     image_bytes=image_bytes,
                     image_media_type=req.image_media_type,
@@ -205,21 +234,24 @@ async def ask_stream(req: AskRequest, request: Request):
                     history=req.history,
                     agent_mode=req.agent_mode,
                     student_model_summary=student_model.get_summary(),
-                ):
-                    asyncio.run_coroutine_threadsafe(queue.put(("token", token)), loop)
-                asyncio.run_coroutine_threadsafe(queue.put(("done", None)), loop)
-            except Exception as e:
-                error_text = str(e)
-                if "429" in error_text:
-                    error_text = "Service is busy - Rate limit exceeded. Please wait a moment."
-                elif "Connection" in error_text or "refused" in error_text:
-                    error_text = ("Cannot connect to the AI backend. "
-                                  "If using Ollama, run: ollama serve. "
-                                  "If using Gemini/OpenAI, check your API key in .env")
-                asyncio.run_coroutine_threadsafe(
-                    queue.put(("error", f"\n\n**{error_text}**")), loop
                 )
+                if answer:
+                    asyncio.run_coroutine_threadsafe(queue.put(("token", answer)), loop)
                 asyncio.run_coroutine_threadsafe(queue.put(("done", None)), loop)
+                return
+            except Exception as fallback_err:
+                error_text = str(fallback_err)
+
+            if "429" in error_text or any("429" in err for err in stream_errors):
+                error_text = "Service is busy - Rate limit exceeded. Please wait a moment."
+            elif "Connection" in error_text or "refused" in error_text:
+                error_text = ("Cannot connect to the AI backend. "
+                              "If using Ollama, run: ollama serve. "
+                              "If using Gemini/OpenAI, check your API key in .env")
+            asyncio.run_coroutine_threadsafe(
+                queue.put(("error", f"\n\n**{error_text}**")), loop
+            )
+            asyncio.run_coroutine_threadsafe(queue.put(("done", None)), loop)
 
         try:
             # Send session ID first

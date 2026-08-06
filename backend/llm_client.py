@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from abc import ABC, abstractmethod
 from typing import Generator
 
@@ -421,7 +422,12 @@ class OpenAIClient(LLMClient):
             return self._non_stream_response_with_fallback(headers, payload)
 
     def _non_stream_response_with_fallback(self, headers: dict, payload: dict) -> str:
-        """Try the primary model, then each fallback model until we get a non-empty answer."""
+        """Try the primary model, then each fallback model until we get a non-empty answer.
+
+        Retries 429 rate-limit responses once with a short backoff before moving to
+        the next fallback, and skips 404 model-not-found errors so valid fallbacks
+        can be tried.
+        """
         models = [self.model] + [m for m in self.fallback_models if m != self.model]
         last_err: Exception | None = None
 
@@ -429,26 +435,37 @@ class OpenAIClient(LLMClient):
             if i > 0:
                 print(f"[LLM] Primary model failed/empty — retrying with fallback: {model}")
             payload["model"] = model
-            try:
-                result = self._non_stream_response(headers, payload)
-                if result and result.strip():
-                    # Permanently upgrade to the working model for the rest of the session
-                    if self.model != model:
-                        print(f"[LLM] Model upgraded to: {model}")
-                        self.model = model
-                    return result
-                last_err = ValueError("Empty response from model")
-            except requests.HTTPError as e:
-                last_err = e
-                status = e.response.status_code if e.response is not None else 0
-                # Auth errors won't be fixed by swapping models — raise immediately
-                if status in (401, 403):
-                    raise
-                if status == 404:
-                    # Model not found; keep trying the next fallback.
-                    continue
-            except Exception as e:
-                last_err = e
+
+            for attempt in range(2):
+                try:
+                    result = self._non_stream_response(headers, payload)
+                    if result and result.strip():
+                        # Permanently upgrade to the working model for the rest of the session
+                        if self.model != model:
+                            print(f"[LLM] Model upgraded to: {model}")
+                            self.model = model
+                        return result
+                    last_err = ValueError("Empty response from model")
+                    break
+                except requests.HTTPError as e:
+                    last_err = e
+                    status = e.response.status_code if e.response is not None else 0
+                    # Auth errors won't be fixed by swapping models or waiting.
+                    if status in (401, 403):
+                        raise
+                    if status == 429:
+                        if attempt == 0:
+                            print(f"[LLM] Rate limit (429) for {model}, retrying in 2s...")
+                            time.sleep(2)
+                            continue
+                        print(f"[LLM] Rate limit persisted for {model}, trying next fallback.")
+                        break
+                    if status == 404:
+                        # Model not found; keep trying the next fallback.
+                        break
+                except Exception as e:
+                    last_err = e
+                    break
 
         if isinstance(last_err, requests.HTTPError):
             status = last_err.response.status_code if last_err.response is not None else 0
@@ -456,6 +473,11 @@ class OpenAIClient(LLMClient):
                 raise ValueError(
                     "No valid LLM model was found. If using OpenRouter, set OPENAI_MODEL to a valid "
                     "model ID such as 'openrouter/free' and ensure OPENAI_BASE_URL is https://openrouter.ai/api/v1."
+                ) from last_err
+            if status == 429:
+                raise ValueError(
+                    "All models are rate-limited. Free-tier providers have usage caps. "
+                    "Wait a few seconds and retry, or upgrade/switch providers."
                 ) from last_err
 
         raise last_err if last_err else ValueError("All models returned empty responses")
