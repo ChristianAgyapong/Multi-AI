@@ -29,6 +29,7 @@ const TOPIC_SUGGESTIONS = [
 export default function Quiz() {
   const [topic, setTopic] = useState("");
   const [numQuestions, setNumQuestions] = useState(3);
+  const [difficulty, setDifficulty] = useState<"easy" | "standard" | "hard">("standard");
   const [loading, setLoading] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
@@ -57,7 +58,7 @@ export default function Quiz() {
         body: JSON.stringify({
           topic: topic.trim(),
           num_questions: numQuestions,
-          difficulty: "Medium",
+          difficulty,
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -136,6 +137,16 @@ export default function Quiz() {
             <option value={3}>3 Questions</option>
             <option value={5}>5 Questions</option>
             <option value={10}>10 Questions</option>
+          </select>
+
+          <select
+            value={difficulty}
+            onChange={(e) => setDifficulty(e.target.value as "easy" | "standard" | "hard")}
+            className="input-field quiz-difficulty-select"
+          >
+            <option value="easy">Basic</option>
+            <option value="standard">Medium</option>
+            <option value="hard">Hard</option>
           </select>
 
           <button

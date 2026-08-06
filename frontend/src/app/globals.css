@@ -241,7 +241,7 @@ body {
 
 .quiz-controls-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 9.5rem auto;
+  grid-template-columns: minmax(0, 1fr) 8.5rem 7rem auto;
   gap: 0.55rem;
   align-items: center;
 }

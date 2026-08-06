@@ -133,7 +133,7 @@ class QuizRequest(BaseModel):
     num_questions: int = 5
     use_context: bool = True
     session_id: str | None = None
-    difficulty: str = "standard"
+    difficulty: str | None = None
 
 
 class TTSRequest(BaseModel):
@@ -275,7 +275,12 @@ def quiz(req: QuizRequest, request: Request):
     student_model = _get_student_model(sid)
 
     context_chunks = store.retrieve(req.topic, top_k=5) if req.use_context else None
-    difficulty = adapt_quiz_difficulty(student_model, req.topic)
+
+    if req.difficulty:
+        raw = req.difficulty.strip().lower()
+        difficulty = {"basic": "easy", "easy": "easy", "medium": "standard", "standard": "standard", "hard": "hard"}.get(raw, "standard")
+    else:
+        difficulty = adapt_quiz_difficulty(student_model, req.topic)
 
     try:
         result = generate_quiz(
