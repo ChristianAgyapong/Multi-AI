@@ -22,9 +22,10 @@ const TOPIC_SUGGESTIONS = [
 ];
 
 const STEPS = [
-  { icon: Bot, label: "Fellow Student explains (with mistakes)" },
-  { icon: Users, label: "You correct their errors" },
-  { icon: GraduationCap, label: "Tutor grades your understanding" },
+  { icon: Bot, title: "Pick a topic", desc: "Enter any concept you want to master." },
+  { icon: GraduationCap, title: "Fellow Student explains it", desc: "An AI peer gives an explanation that deliberately contains mistakes." },
+  { icon: Users, title: "You correct the mistakes", desc: "Read carefully, then message back what is wrong and what the correct version should be." },
+  { icon: Sparkles, title: "Tutor grades your understanding", desc: "A Tutor AI checks your corrections and tells you what you got right or missed." },
 ];
 
 export default function Debate() {
@@ -176,13 +177,19 @@ export default function Debate() {
 
             {/* How it works */}
             <div className="space-y-2 text-left">
-              {STEPS.map(({ icon: Icon, label }, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/40 border border-[var(--border-color)]">
-                  <div className="w-7 h-7 rounded-full bg-pink-500/15 border border-pink-500/30 flex items-center justify-center shrink-0">
+              <p className="text-[0.7rem] uppercase tracking-wider text-pink-300/80 font-semibold mb-1.5 text-center">How it works</p>
+              {STEPS.map(({ icon: Icon, title, desc }, i) => (
+                <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-slate-800/40 border border-[var(--border-color)]">
+                  <div className="w-7 h-7 rounded-full bg-pink-500/15 border border-pink-500/30 flex items-center justify-center shrink-0 mt-0.5">
                     <span className="text-xs font-bold text-pink-400">{i + 1}</span>
                   </div>
-                  <Icon size={14} className="text-[var(--text-muted)] shrink-0" />
-                  <span className="text-xs text-[var(--text-muted)]">{label}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <Icon size={14} className="text-pink-300 shrink-0" />
+                      <span className="text-xs font-semibold text-[var(--text-main)]">{title}</span>
+                    </div>
+                    <p className="text-[0.75rem] text-[var(--text-muted)] leading-snug">{desc}</p>
+                  </div>
                 </div>
               ))}
             </div>
