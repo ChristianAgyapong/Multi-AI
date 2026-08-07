@@ -55,12 +55,15 @@ export default function Quiz() {
     setUserAnswers({});
     setSubmitted(false);
 
-    // Client-side timeout: if the backend takes too long, abort and surface a friendly message.
+// Client-side timeout: scale with the number of questions so larger quizzes
+    // (up to 30) have enough time to generate without a false timeout/crash.
+    // Base ~20s + ~2.5s per question (30 → ~95s).
+    const timeoutMs = 20000 + numQuestions * 2500;
     const timeoutId = window.setTimeout(() => {
       abortRef.current?.abort();
-      setError("Quiz generation is taking too long. Try fewer questions or Basic difficulty.");
+      setError("Quiz generation is taking too long. Try fewer questions or Easy difficulty.");
       setLoading(false);
-    }, 35000);
+    }, timeoutMs);
 
     try {
       const res = await fetch(`${API_BASE}/quiz`, {
@@ -166,7 +169,7 @@ export default function Quiz() {
             onChange={(e) => setDifficulty(e.target.value as "easy" | "standard" | "hard")}
             className="input-field quiz-difficulty-select"
           >
-            <option value="easy">Basic</option>
+            <option value="easy">Easy</option>
             <option value="standard">Medium</option>
             <option value="hard">Hard</option>
           </select>

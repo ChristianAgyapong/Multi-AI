@@ -3,43 +3,120 @@ Vector-embedding RAG (Retrieval-Augmented Generation) over uploaded course mater
 
 Embedding strategy (no PyTorch / sentence-transformers required):
   - If GEMINI_API_KEY is set: uses Google's text-embedding-004 model via
-    the google-generativeai SDK (free tier, fast, ~768-dim embeddings).
-  - Fallback: TF-IDF (sklearn) — no API key needed, works offline, keyword-based.
+    the google-generativeai SDK (free tier, fast, ~768-dim embeddings),
+    with a persistent SQLite cache so identical chunks are never re-embedded.
+  - Fallback: HashingVectorizer (sklearn) — no API key needed, works offline,
+    deterministic and O(new chunks) per upload (no vocabulary re-fit).
 
 The public interface (add_document, retrieve, is_empty, get_stats) is unchanged.
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import re
+import sqlite3
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import numpy as np
+from sklearn.feature_extraction.text import HashingVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 # ---------------------------------------------------------------------------
-# Embedding backend — Gemini if key present, else TF-IDF
+# Embedding backend — Gemini if key present, else HashingVectorizer
 # ---------------------------------------------------------------------------
-_GEMINI_MODEL: object = None   # genai embedding client
-_TFIDF: object = None          # TfidfVectorizer (fallback)
-_TFIDF_MATRIX: object = None   # np.ndarray of TF-IDF vectors (fallback)
+# Deterministic offline fallback. HashingVectorizer needs no vocabulary fit,
+# so adding documents is O(new chunks) instead of O(all chunks).
+_HASH_VECTORIZER = HashingVectorizer(
+    n_features=4096, alternate_sign=False, norm="l2"
+)
+
+# Persistent SQLite cache: chunk SHA-256 -> serialized embedding vector.
+# Re-uploading the same (or overlapping) material never re-calls the Gemini API.
+_EMBED_DB_PATH = Path(__file__).resolve().parent.parent / "data" / "embedding_cache.db"
+_EMBED_DB_LOCK = threading.Lock()
+
+_GEMINI_MODEL_NAME = "text-embedding-004"
+_GEMINI_BATCH_SIZE = 16       # max chunks per API call
+_GEMINI_MAX_WORKERS = 4       # parallel batch workers
+_GEMINI_MAX_RETRIES = 3       # retries on transient errors / rate limits
 
 
 def _has_gemini() -> bool:
     return bool(os.environ.get("GEMINI_API_KEY"))
 
 
+def _get_embedding_conn() -> sqlite3.Connection:
+    """Open (and initialize) the embedding cache DB."""
+    _EMBED_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(_EMBED_DB_PATH))
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS embeddings (key TEXT PRIMARY KEY, vector BLOB)"
+    )
+    conn.commit()
+    return conn
+
+
+def _chunk_hash(chunk: str) -> str:
+    return hashlib.sha256(chunk.encode("utf-8")).hexdigest()
+
+
+def _load_cached_vectors(chunks: list[str]) -> tuple[dict[str, np.ndarray], list[str]]:
+    """Return ({chunk_hash: vector}, uncached_chunks) for the given chunks."""
+    cache: dict[str, np.ndarray] = {}
+    uncached: list[str] = []
+    hashes = {c: _chunk_hash(c) for c in chunks}
+    with _EMBED_DB_LOCK:
+        conn = _get_embedding_conn()
+        try:
+            for chunk in chunks:
+                row = conn.execute(
+                    "SELECT vector FROM embeddings WHERE key = ?",
+                    (hashes[chunk],),
+                ).fetchone()
+                if row is not None:
+                    cache[hashes[chunk]] = np.frombuffer(row[0], dtype=np.float32)
+                else:
+                    uncached.append(chunk)
+        finally:
+            conn.close()
+    return cache, uncached
+
+
+def _save_cached_vectors(chunks: list[str], vectors: np.ndarray) -> None:
+    """Persist (chunk, vector) pairs to the SQLite cache."""
+    if not chunks:
+        return
+    with _EMBED_DB_LOCK:
+        conn = _get_embedding_conn()
+        try:
+            conn.executemany(
+                "INSERT OR REPLACE INTO embeddings (key, vector) VALUES (?, ?)",
+                [
+                    (_chunk_hash(c), v.astype(np.float32).tobytes())
+                    for c, v in zip(chunks, vectors)
+                ],
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
 def _gemini_embed(texts: list[str]) -> np.ndarray:
-    """Embed a list of texts using Gemini text-embedding-004."""
+    """Embed a list of texts using Gemini text-embedding-004 (document task)."""
     from google import genai
 
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
     result = client.models.embed_content(
-        model="text-embedding-004",
+        model=_GEMINI_MODEL_NAME,
         contents=texts,
         config={"task_type": "RETRIEVAL_DOCUMENT"},
     )
-    return np.array([e.values for e in result.embeddings])
+    return np.array([e.values for e in result.embeddings], dtype=np.float32)
 
 
 def _gemini_embed_query(query: str) -> np.ndarray:
@@ -47,11 +124,61 @@ def _gemini_embed_query(query: str) -> np.ndarray:
 
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
     result = client.models.embed_content(
-        model="text-embedding-004",
+        model=_GEMINI_MODEL_NAME,
         contents=query,
         config={"task_type": "RETRIEVAL_QUERY"},
     )
-    return np.array([e.values for e in result.embeddings]).reshape(1, -1)
+    return np.array([e.values for e in result.embeddings], dtype=np.float32).reshape(1, -1)
+
+
+def _embed_with_retry(batch: list[str]) -> np.ndarray:
+    """Call Gemini for one batch, retrying on transient/429 errors."""
+    last_err: Exception | None = None
+    for attempt in range(_GEMINI_MAX_RETRIES):
+        try:
+            return _gemini_embed(batch)
+        except Exception as e:  # noqa: BLE001
+            last_err = e
+            msg = str(e)
+            if "429" in msg or "quota" in msg.lower() or "RESOURCE_EXHAUSTED" in msg:
+                time.sleep(1.5 * (attempt + 1))
+                continue
+            # Transient network errors: retry once
+            if attempt < _GEMINI_MAX_RETRIES - 1 and (
+                "connection" in msg.lower() or "timeout" in msg.lower()
+            ):
+                time.sleep(0.5)
+                continue
+            break
+    raise last_err or RuntimeError("Gemini embedding failed")
+
+
+def _embed_chunks_with_cache(chunks: list[str]) -> np.ndarray:
+    """Embed chunks using Gemini, reusing cached vectors and batching in parallel."""
+    if not chunks:
+        return np.empty((0, 0), dtype=np.float32)
+
+    cache, uncached = _load_cached_vectors(chunks)
+
+    if uncached:
+        batches = [
+            uncached[i : i + _GEMINI_BATCH_SIZE]
+            for i in range(0, len(uncached), _GEMINI_BATCH_SIZE)
+        ]
+        with ThreadPoolExecutor(max_workers=_GEMINI_MAX_WORKERS) as pool:
+            batch_vectors = list(pool.map(_embed_with_retry, batches))
+        new_vectors = np.vstack(batch_vectors)
+        _save_cached_vectors(uncached, new_vectors)
+        for chunk, vec in zip(uncached, new_vectors):
+            cache[_chunk_hash(chunk)] = vec
+
+    ordered = np.vstack([cache[_chunk_hash(c)] for c in chunks])
+    return ordered
+
+
+def _hash_embed(texts: list[str]) -> np.ndarray:
+    """Offline hashing-vectorizer fallback (deterministic, no fit needed)."""
+    return _HASH_VECTORIZER.transform(texts).toarray()
 
 
 # ---------------------------------------------------------------------------
@@ -166,13 +293,13 @@ class MaterialStore:
 
         if self._use_gemini:
             try:
-                new_embeddings = _gemini_embed(new_chunks)
+                new_embeddings = _embed_chunks_with_cache(new_chunks)
             except Exception:
-                # If Gemini fails, fall back to TF-IDF
+                # If Gemini fails, fall back to the hashing-vectorizer
                 self._use_gemini = False
-                new_embeddings = self._tfidf_embed_docs(new_chunks)
+                new_embeddings = _hash_embed(new_chunks)
         else:
-            new_embeddings = self._tfidf_embed_docs(new_chunks)
+            new_embeddings = _hash_embed(new_chunks)
 
         self.chunks.extend(new_chunks)
         self.sources.extend([filename] * len(new_chunks))
@@ -193,9 +320,9 @@ class MaterialStore:
             try:
                 query_vec = _gemini_embed_query(query)
             except Exception:
-                query_vec = self._tfidf_embed_query(query)
+                query_vec = _hash_embed([query])
         else:
-            query_vec = self._tfidf_embed_query(query)
+            query_vec = _hash_embed([query])
 
         scores = cosine_similarity(query_vec, self._embeddings).flatten()
         top_indices = scores.argsort()[::-1][:top_k]
@@ -235,49 +362,13 @@ class MaterialStore:
             if self._embeddings.shape[0] == 0:
                 self._embeddings = None
 
-        # Rebuild TF-IDF vocabulary if we dropped the source that trained it
-        if not self._use_gemini and hasattr(self, "_tfidf_vectorizer"):
-            if self.chunks:
-                from sklearn.feature_extraction.text import TfidfVectorizer
-
-                vectorizer = TfidfVectorizer(max_features=4096)
-                matrix = vectorizer.fit_transform(self.chunks).toarray()
-                self._tfidf_vectorizer = vectorizer
-                self._embeddings = matrix
-            else:
-                self._tfidf_vectorizer = None
-
         return len(indices)
 
     def get_stats(self) -> dict:
-        backend = "Gemini text-embedding-004" if self._use_gemini else "TF-IDF"
+        backend = "Gemini text-embedding-004" if self._use_gemini else "HashingVectorizer"
         return {
             "total_chunks": len(self.chunks),
             "sources": sorted(set(self.sources)),
             "embedding_dim": self._embeddings.shape[1] if self._embeddings is not None else 0,
             "backend": backend,
         }
-
-    # ── TF-IDF fallback helpers ──────────────────────────────────────────
-
-    def _tfidf_embed_docs(self, new_chunks: list[str]) -> np.ndarray:
-        """Fit or update TF-IDF and return dense vectors for new_chunks."""
-        from sklearn.feature_extraction.text import TfidfVectorizer
-
-        all_chunks = self.chunks + new_chunks
-        vectorizer = TfidfVectorizer(max_features=4096)
-        matrix = vectorizer.fit_transform(all_chunks).toarray()
-        # Store fitted vectorizer for query time
-        self._tfidf_vectorizer = vectorizer  # type: ignore[attr-defined]
-        # Re-embed already stored chunks with new vocabulary
-        if self.chunks:
-            self._embeddings = matrix[: len(self.chunks)]
-        return matrix[len(self.chunks) :]
-
-    def _tfidf_embed_query(self, query: str) -> np.ndarray:
-        if not hasattr(self, "_tfidf_vectorizer"):
-            from sklearn.feature_extraction.text import TfidfVectorizer
-            v = TfidfVectorizer(max_features=4096)
-            v.fit(self.chunks)
-            self._tfidf_vectorizer = v  # type: ignore[attr-defined]
-        return self._tfidf_vectorizer.transform([query]).toarray()

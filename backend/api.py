@@ -12,6 +12,7 @@ Run with: uvicorn backend.api:app --reload
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import time
@@ -339,14 +340,15 @@ async def upload_material(file: UploadFile, request: Request):
 
     try:
         file_bytes = await file.read()
+        # Text extraction (CPU-bound / I/O-bound) — run in a thread
         if lower.endswith(".pdf"):
-            text = extract_text_from_pdf(file_bytes)
+            text = await asyncio.to_thread(extract_text_from_pdf, file_bytes)
         elif lower.endswith(".docx"):
-            text = extract_text_from_docx(file_bytes)
+            text = await asyncio.to_thread(extract_text_from_docx, file_bytes)
         elif lower.endswith(".pptx"):
             try:
                 from backend.rag import extract_text_from_pptx
-                text = extract_text_from_pptx(file_bytes)
+                text = await asyncio.to_thread(extract_text_from_pptx, file_bytes)
             except ImportError as e:
                 raise HTTPException(status_code=422, detail=f"PowerPoint support is not installed: {e}")
         elif lower.endswith(supported_text):
@@ -367,7 +369,8 @@ async def upload_material(file: UploadFile, request: Request):
             detail=f"No text could be extracted from {file.filename}. It may be a scanned image or an unsupported format.",
         )
 
-    n_chunks = store.add_document(file.filename or "unknown", text)
+    # Chunking + embedding (CPU / API-bound) — also run in a thread
+    n_chunks = await asyncio.to_thread(store.add_document, file.filename or "unknown", text)
     return {"filename": file.filename, "chunks_added": n_chunks, "session_id": sid}
 
 
