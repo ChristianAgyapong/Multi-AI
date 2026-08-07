@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from abc import ABC, abstractmethod
 from typing import Generator
 
@@ -30,14 +31,15 @@ import requests
 # more natural and creative, while structured outputs (quiz JSON) pass ~0.2.
 DEFAULT_TEMPERATURE = float(os.environ.get("LLM_TEMPERATURE", "0.7"))
 
-# Smarter fallback chain for OpenRouter free tier. If the primary model is
-# overloaded, decommissioned, or returns an empty answer, the client will
-# automatically retry with these higher-quality free models in order.
+# Smarter fallback chain for OpenRouter. Free model availability changes, so
+# the first entry is the OpenRouter "free" router which auto-picks an available
+# free model. The rest are known-valid free variants as a safety net.
 OPENROUTER_FALLBACK_MODELS = [
-    "deepseek/deepseek-r1-distill-qwen-32b:free",
-    "qwen/qwen-2.5-72b-instruct:free",
+    "openrouter/free",
     "meta-llama/llama-3.3-70b-instruct:free",
     "google/gemma-4-26b-a4b-it:free",
+    "deepseek/deepseek-chat:free",
+    "qwen/qwen-2.5-72b-instruct:free",
 ]
 
 
@@ -420,7 +422,12 @@ class OpenAIClient(LLMClient):
             return self._non_stream_response_with_fallback(headers, payload)
 
     def _non_stream_response_with_fallback(self, headers: dict, payload: dict) -> str:
-        """Try the primary model, then each fallback model until we get a non-empty answer."""
+        """Try the primary model, then each fallback model until we get a non-empty answer.
+
+        Retries 429 rate-limit responses once with a short backoff before moving to
+        the next fallback, and skips 404 model-not-found errors so valid fallbacks
+        can be tried.
+        """
         models = [self.model] + [m for m in self.fallback_models if m != self.model]
         last_err: Exception | None = None
 
@@ -428,23 +435,50 @@ class OpenAIClient(LLMClient):
             if i > 0:
                 print(f"[LLM] Primary model failed/empty — retrying with fallback: {model}")
             payload["model"] = model
-            try:
-                result = self._non_stream_response(headers, payload)
-                if result and result.strip():
-                    # Permanently upgrade to the working model for the rest of the session
-                    if self.model != model:
-                        print(f"[LLM] Model upgraded to: {model}")
-                        self.model = model
-                    return result
-                last_err = ValueError("Empty response from model")
-            except requests.HTTPError as e:
-                last_err = e
-                status = e.response.status_code if e.response is not None else 0
-                # Auth errors won't be fixed by swapping models — raise immediately
-                if status in (401, 403):
-                    raise
-            except Exception as e:
-                last_err = e
+
+            for attempt in range(2):
+                try:
+                    result = self._non_stream_response(headers, payload)
+                    if result and result.strip():
+                        # Permanently upgrade to the working model for the rest of the session
+                        if self.model != model:
+                            print(f"[LLM] Model upgraded to: {model}")
+                            self.model = model
+                        return result
+                    last_err = ValueError("Empty response from model")
+                    break
+                except requests.HTTPError as e:
+                    last_err = e
+                    status = e.response.status_code if e.response is not None else 0
+                    # Auth errors won't be fixed by swapping models or waiting.
+                    if status in (401, 403):
+                        raise
+                    if status == 429:
+                        if attempt == 0:
+                            print(f"[LLM] Rate limit (429) for {model}, retrying in 2s...")
+                            time.sleep(2)
+                            continue
+                        print(f"[LLM] Rate limit persisted for {model}, trying next fallback.")
+                        break
+                    if status == 404:
+                        # Model not found; keep trying the next fallback.
+                        break
+                except Exception as e:
+                    last_err = e
+                    break
+
+        if isinstance(last_err, requests.HTTPError):
+            status = last_err.response.status_code if last_err.response is not None else 0
+            if status == 404:
+                raise ValueError(
+                    "No valid LLM model was found. If using OpenRouter, set OPENAI_MODEL to a valid "
+                    "model ID such as 'openrouter/free' and ensure OPENAI_BASE_URL is https://openrouter.ai/api/v1."
+                ) from last_err
+            if status == 429:
+                raise ValueError(
+                    "All models are rate-limited. Free-tier providers have usage caps. "
+                    "Wait a few seconds and retry, or upgrade/switch providers."
+                ) from last_err
 
         raise last_err if last_err else ValueError("All models returned empty responses")
 
@@ -520,16 +554,27 @@ def _is_groq(base_url: str = None) -> bool:
     return "groq.com" in url.lower()
 
 
+def _get_vision_fallbacks(vision_base_url: str) -> list[str] | None:
+    """Return the right fallback model chain for the configured vision provider."""
+    env_fallback = os.environ.get("VISION_FALLBACK_MODELS") or os.environ.get("OPENROUTER_FALLBACK_MODELS")
+    if env_fallback:
+        return [m.strip() for m in env_fallback.split(",") if m.strip()]
+    if "openrouter.ai" in (vision_base_url or "").lower():
+        return OPENROUTER_FALLBACK_MODELS
+    env_primary_fallback = os.environ.get("OPENAI_FALLBACK_MODELS", "")
+    if env_primary_fallback:
+        return [m.strip() for m in env_primary_fallback.split(",") if m.strip()]
+    return None
+
+
 def get_client(require_vision: bool = False) -> LLMClient:
     """Return the appropriate LLM client based on environment configuration.
 
-    Supports a DUAL-PROVIDER setup for maximum speed + vision capability:
-      - OPENAI_*          : Primary provider for fast text chat (e.g. Groq)
-      - VISION_API_KEY    : Separate provider used ONLY for image requests
-      - VISION_BASE_URL   : Base URL for the vision provider (e.g. OpenRouter)
-      - VISION_MODEL      : Model name for vision requests
+    Supports a DUAL-PROVIDER setup for maximum speed + vision/document capability:
+      - OPENAI_* / GROQ : Primary provider for fast text chat
+      - VISION_API_KEY / OPENROUTER_* : Separate provider for image + document analysis
 
-    When `require_vision=True` and VISION_API_KEY is set, always routes to
+    When `require_vision=True` and a vision/OpenRouter key is set, always routes to
     the dedicated vision provider regardless of the primary provider.
 
     Providers:
@@ -541,23 +586,34 @@ def get_client(require_vision: bool = False) -> LLMClient:
     provider = os.environ.get("LLM_PROVIDER", "").strip().lower()
 
     if require_vision:
-        # --- Priority 1: Dedicated vision provider (VISION_API_KEY set) ---
-        vision_api_key = os.environ.get("VISION_API_KEY", "")
-        vision_base_url = os.environ.get("VISION_BASE_URL", "")
-        vision_model = os.environ.get("VISION_MODEL", "google/gemma-4-26b-a4b-it:free")
+        # --- Priority 1: Dedicated vision provider (VISION_* or OPENROUTER_* aliases) ---
+        vision_api_key = os.environ.get("VISION_API_KEY") or os.environ.get("OPENROUTER_API_KEY")
+        vision_base_url = os.environ.get("VISION_BASE_URL") or os.environ.get("OPENROUTER_BASE_URL")
+        vision_model = (
+            os.environ.get("VISION_MODEL")
+            or os.environ.get("OPENROUTER_MODEL")
+            or "google/gemma-4-26b-a4b-it:free"
+        )
         if vision_api_key and vision_base_url:
-            print(f"[LLM] Image detected -> vision provider: {vision_base_url} model: {vision_model}")
-            return OpenAIClient(model=vision_model, api_key=vision_api_key, base_url=vision_base_url)
+            print(f"[LLM] Image/document request -> vision provider: {vision_base_url} model: {vision_model}")
+            fallback_models = _get_vision_fallbacks(vision_base_url)
+            return OpenAIClient(
+                model=vision_model,
+                api_key=vision_api_key,
+                base_url=vision_base_url,
+                fallback_models=fallback_models,
+            )
 
         # --- Priority 2: Primary provider if it's NOT Groq ---
         is_groq_primary = (provider == "openai" and _is_groq())
         if provider == "openai" and not is_groq_primary:
             vision_model = os.environ.get("OPENAI_VISION_MODEL", "google/gemma-4-26b-a4b-it:free")
-            print(f"[LLM] Image detected -> using vision model: {vision_model}")
+            print(f"[LLM] Image/document request -> using vision model: {vision_model}")
             return OpenAIClient(
                 model=vision_model,
                 api_key=os.environ.get("OPENAI_API_KEY"),
                 base_url=os.environ.get("OPENAI_BASE_URL"),
+                fallback_models=_get_vision_fallbacks(os.environ.get("OPENAI_BASE_URL", "")),
             )
 
         # --- Priority 3: Gemini (native vision support) ---
@@ -591,7 +647,9 @@ def get_client(require_vision: bool = False) -> LLMClient:
         # Attach the smarter fallback chain automatically for OpenRouter users
         is_openrouter = "openrouter.ai" in os.environ.get("OPENAI_BASE_URL", "").lower()
         if is_openrouter:
-            return OpenAIClient(fallback_models=OPENROUTER_FALLBACK_MODELS)
+            # Default to the auto-selecting free router if the user hasn't set a model
+            model = os.environ.get("OPENAI_MODEL") or "openrouter/free"
+            return OpenAIClient(model=model, fallback_models=OPENROUTER_FALLBACK_MODELS)
         return OpenAIClient()
     elif provider == "anthropic":
         return OpenAIClient(
@@ -604,6 +662,11 @@ def get_client(require_vision: bool = False) -> LLMClient:
         if OllamaClient.check_available():
             print("[LLM] Auto-detected Ollama (use LLM_PROVIDER=openai to override).")
             return OllamaClient()
+        is_openrouter = "openrouter.ai" in os.environ.get("OPENAI_BASE_URL", "").lower()
+        if is_openrouter:
+            model = os.environ.get("OPENAI_MODEL") or "openrouter/free"
+            print(f"[LLM] Auto-detected OpenRouter. Using model: {model}")
+            return OpenAIClient(model=model, fallback_models=OPENROUTER_FALLBACK_MODELS)
         print("[LLM] Using OpenAI-compatible client (set LLM_PROVIDER=ollama for local).")
         return OpenAIClient()
 

@@ -26,7 +26,7 @@ from fastapi import FastAPI, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.cache import get_cache_stats
 from backend.quiz import generate_quiz
@@ -130,10 +130,10 @@ class AskRequest(BaseModel):
 
 class QuizRequest(BaseModel):
     topic: str
-    num_questions: int = 5
+    num_questions: int = Field(default=5, ge=1, le=30)
     use_context: bool = True
     session_id: str | None = None
-    difficulty: str = "standard"
+    difficulty: str | None = None
 
 
 class TTSRequest(BaseModel):
@@ -195,9 +195,38 @@ async def ask_stream(req: AskRequest, request: Request):
         queue: asyncio.Queue = asyncio.Queue()
 
         def worker():
-            """Run the sync generator and push each token to the queue immediately."""
+            """Run the sync generator and push each token to the queue immediately.
+
+            On a 429 rate-limit error, retry the stream once after a short backoff,
+            then fall back to the non-streaming path (which has multi-model fallbacks).
+            """
+            stream_errors = []
+            for attempt in range(2):
+                try:
+                    for token in ask_tutor_stream(
+                        req.question,
+                        image_bytes=image_bytes,
+                        image_media_type=req.image_media_type,
+                        context_chunks=context_chunks,
+                        history=req.history,
+                        agent_mode=req.agent_mode,
+                        student_model_summary=student_model.get_summary(),
+                    ):
+                        asyncio.run_coroutine_threadsafe(queue.put(("token", token)), loop)
+                    asyncio.run_coroutine_threadsafe(queue.put(("done", None)), loop)
+                    return
+                except Exception as e:
+                    error_text = str(e)
+                    stream_errors.append(error_text)
+                    if "429" in error_text and attempt == 0:
+                        print("[LLM] Stream rate-limited (429), retrying in 2s...")
+                        time.sleep(2)
+                        continue
+                    break
+
+            # Fall back to non-streaming; it has model fallbacks and 429 retry logic.
             try:
-                for token in ask_tutor_stream(
+                answer = ask_tutor(
                     req.question,
                     image_bytes=image_bytes,
                     image_media_type=req.image_media_type,
@@ -205,21 +234,24 @@ async def ask_stream(req: AskRequest, request: Request):
                     history=req.history,
                     agent_mode=req.agent_mode,
                     student_model_summary=student_model.get_summary(),
-                ):
-                    asyncio.run_coroutine_threadsafe(queue.put(("token", token)), loop)
-                asyncio.run_coroutine_threadsafe(queue.put(("done", None)), loop)
-            except Exception as e:
-                error_text = str(e)
-                if "429" in error_text:
-                    error_text = "Service is busy - Rate limit exceeded. Please wait a moment."
-                elif "Connection" in error_text or "refused" in error_text:
-                    error_text = ("Cannot connect to the AI backend. "
-                                  "If using Ollama, run: ollama serve. "
-                                  "If using Gemini/OpenAI, check your API key in .env")
-                asyncio.run_coroutine_threadsafe(
-                    queue.put(("error", f"\n\n**{error_text}**")), loop
                 )
+                if answer:
+                    asyncio.run_coroutine_threadsafe(queue.put(("token", answer)), loop)
                 asyncio.run_coroutine_threadsafe(queue.put(("done", None)), loop)
+                return
+            except Exception as fallback_err:
+                error_text = str(fallback_err)
+
+            if "429" in error_text or any("429" in err for err in stream_errors):
+                error_text = "Service is busy - Rate limit exceeded. Please wait a moment."
+            elif "Connection" in error_text or "refused" in error_text:
+                error_text = ("Cannot connect to the AI backend. "
+                              "If using Ollama, run: ollama serve. "
+                              "If using Gemini/OpenAI, check your API key in .env")
+            asyncio.run_coroutine_threadsafe(
+                queue.put(("error", f"\n\n**{error_text}**")), loop
+            )
+            asyncio.run_coroutine_threadsafe(queue.put(("done", None)), loop)
 
         try:
             # Send session ID first
@@ -275,7 +307,12 @@ def quiz(req: QuizRequest, request: Request):
     student_model = _get_student_model(sid)
 
     context_chunks = store.retrieve(req.topic, top_k=5) if req.use_context else None
-    difficulty = adapt_quiz_difficulty(student_model, req.topic)
+
+    if req.difficulty:
+        raw = req.difficulty.strip().lower()
+        difficulty = {"basic": "easy", "easy": "easy", "medium": "standard", "standard": "standard", "hard": "hard"}.get(raw, "standard")
+    else:
+        difficulty = adapt_quiz_difficulty(student_model, req.topic)
 
     try:
         result = generate_quiz(
@@ -291,19 +328,44 @@ def quiz(req: QuizRequest, request: Request):
 
 @app.post("/materials")
 async def upload_material(file: UploadFile, request: Request):
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
+
     sid = _get_session_id(request)
     store = _get_store(sid)
 
-    file_bytes = await file.read()
-    if file.filename and file.filename.endswith(".pdf"):
-        text = extract_text_from_pdf(file_bytes)
-    elif file.filename and file.filename.endswith(".docx"):
-        text = extract_text_from_docx(file_bytes)
-    elif file.filename and file.filename.endswith((".ppt", ".pptx")):
-        from backend.rag import extract_text_from_pptx
-        text = extract_text_from_pptx(file_bytes)
-    else:
-        text = file_bytes.decode("utf-8", errors="ignore")
+    lower = file.filename.lower()
+    supported_text = (".txt", ".md", ".json", ".csv")
+
+    try:
+        file_bytes = await file.read()
+        if lower.endswith(".pdf"):
+            text = extract_text_from_pdf(file_bytes)
+        elif lower.endswith(".docx"):
+            text = extract_text_from_docx(file_bytes)
+        elif lower.endswith(".pptx"):
+            try:
+                from backend.rag import extract_text_from_pptx
+                text = extract_text_from_pptx(file_bytes)
+            except ImportError as e:
+                raise HTTPException(status_code=422, detail=f"PowerPoint support is not installed: {e}")
+        elif lower.endswith(supported_text):
+            text = file_bytes.decode("utf-8", errors="ignore")
+        else:
+            raise HTTPException(
+                status_code=415,
+                detail=f"Unsupported file type: {file.filename}. Upload .txt, .md, .pdf, .docx, or .pptx.",
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Could not read file: {e}")
+
+    if not text or not text.strip():
+        raise HTTPException(
+            status_code=422,
+            detail=f"No text could be extracted from {file.filename}. It may be a scanned image or an unsupported format.",
+        )
 
     n_chunks = store.add_document(file.filename or "unknown", text)
     return {"filename": file.filename, "chunks_added": n_chunks, "session_id": sid}
@@ -477,10 +539,17 @@ def provider_status():
 
     if provider == "openai":
         api_key = os.environ.get("OPENAI_API_KEY")
+        vision_key = os.environ.get("VISION_API_KEY") or os.environ.get("OPENROUTER_API_KEY")
+        vision_base = os.environ.get("VISION_BASE_URL") or os.environ.get("OPENROUTER_BASE_URL")
         return {
             "provider": "openai",
             "connected": bool(api_key),
             "message": "OpenAI API key found" if api_key else "OPENAI_API_KEY not set",
+            "vision_provider": {
+                "provider": "openrouter" if "openrouter.ai" in (vision_base or "").lower() else "vision",
+                "connected": bool(vision_key and vision_base),
+                "message": "Vision provider configured" if (vision_key and vision_base) else "No vision/document provider set",
+            },
         }
 
     if provider == "anthropic":

@@ -12,6 +12,7 @@ Optimizations (v2):
 """
 from __future__ import annotations
 
+import difflib
 import json
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -19,13 +20,28 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from backend.llm_client import get_client
 from backend.cache import get_cached_quiz, set_cached_quiz
 
-QUIZ_SYSTEM_PROMPT = """You generate quiz questions. Output ONLY valid JSON. No markdown, no explanation.
-Schema: {"topic":"string","questions":[{"question":"string","options":["A","B","C","D"],"correct_index":0,"explanation":"1 sentence"}]}
-Rules: options max 8 words each, explanation max 15 words, be concise."""
+QUIZ_SYSTEM_PROMPT = """You generate quiz questions. Output ONLY valid JSON. No markdown outside the JSON, no extra text.
+
+Schema: {"topic":"string","questions":[{"question":"string","options":["A","B","C","D"],"correct_index":0,"explanation":"string"}]}
+
+Rules:
+- Each question must cover a DIFFERENT angle, scenario, or sub-topic. Do NOT repeat the same question or concept with slightly different wording.
+- For each question, write 2-4 clear sentences that teach the concept behind the correct answer.
+- Explain WHY the correct answer is right and WHY the most tempting wrong option is wrong.
+- Use simple language, a short real-world example when helpful, and avoid repeating the question text.
+- Do not just restate the correct option; explain the idea so the student learns it.
+- Options: max 10 words each. Keep questions concise but not shallow."""
 
 # Per-batch prompt for parallel generation
 BATCH_PROMPT = """Generate {n} MCQ questions about: {topic}. {difficulty}{context}
-Return ONLY JSON with a \"questions\" array. Each item: question, options(4), correct_index, explanation."""
+
+Requirements:
+- Return ONLY valid JSON with a "questions" array.
+- Each item must have: question, options (4), correct_index, explanation.
+- Every question must be DISTINCT. Do NOT repeat the same question or concept across the batch; vary the scenario, wording, and tested angle.
+- The explanation must be 2-4 clear sentences that teach the concept, explain why the correct answer is right, and point out why the most tempting wrong answer is wrong. Do not just repeat the question or the correct option.
+- Use simple language and a short real-world example when helpful.
+- Options should be short (max 10 words)."""
 
 
 def _extract_and_clean_json(text: str) -> str:
@@ -34,6 +50,7 @@ def _extract_and_clean_json(text: str) -> str:
     - Reasoning/thinking blocks
     - Markdown code fences (```json ... ```)
     - Preamble text before/after
+    - Curly braces inside string values
     """
     text = text.strip()
 
@@ -44,14 +61,27 @@ def _extract_and_clean_json(text: str) -> str:
     text = re.sub(r'```(?:json)?\s*', '', text)
     text = re.sub(r'\s*```', '', text)
 
-    # Find the LAST complete balanced JSON object using brace-depth tracking
-    # This correctly handles multiple JSON blocks (drafts, thinking, final)
+    # Find the LAST complete balanced JSON object, being careful to ignore
+    # braces that appear inside quoted strings.
     brace_depth = 0
     last_json_start = -1
     last_json_end = -1
+    in_string = False
+    escaped = False
 
     for i, ch in enumerate(text):
-        if ch == '{':
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == '\\':
+                escaped = True
+            elif ch == '"':
+                in_string = False
+            continue
+
+        if ch == '"':
+            in_string = True
+        elif ch == '{':
             if brace_depth == 0:
                 last_json_start = i
             brace_depth += 1
@@ -89,6 +119,32 @@ def _parse_quiz_json(raw_text: str, batch_label: str = "") -> list[dict]:
     return questions
 
 
+def _normalize_question(text: str) -> str:
+    """Lowercase and remove non-word characters so duplicates can be detected."""
+    return re.sub(r"\W+", " ", text.lower()).strip()
+
+
+def _is_duplicate(q1: dict, q2: dict, threshold: float = 0.95) -> bool:
+    """Check if two quiz questions are verbatim or near-verbatim duplicates."""
+    n1 = _normalize_question(q1.get("question", ""))
+    n2 = _normalize_question(q2.get("question", ""))
+    if n1 == n2:
+        return True
+    if len(n1) < 15 or len(n2) < 15:
+        # For very short questions, only exact matches count.
+        return False
+    return difflib.SequenceMatcher(None, n1, n2).ratio() >= threshold
+
+
+def _deduplicate_questions(questions: list[dict], threshold: float = 0.95) -> list[dict]:
+    """Keep the first occurrence of each distinct question."""
+    unique: list[dict] = []
+    for q in questions:
+        if not any(_is_duplicate(q, u, threshold) for u in unique):
+            unique.append(q)
+    return unique
+
+
 def _generate_batch(
     topic: str,
     n: int,
@@ -96,6 +152,7 @@ def _generate_batch(
     context_str: str,
     batch_num: int,
     total_batches: int,
+    extra_instruction: str = "",
 ) -> list[dict]:
     """Generate a single batch of n questions. Called in parallel via ThreadPoolExecutor."""
     llm = get_client()
@@ -106,17 +163,22 @@ def _generate_batch(
         context=context_str,
     )
     prompt += f"\n\n(Batch {batch_num}/{total_batches} - generate exactly {n} questions.)"
+    if extra_instruction:
+        prompt += f"\n\n{extra_instruction}"
 
     max_retries = 2
     last_err = None
+
+    max_tokens = min(160 * n + 120, 3000)
 
     for attempt in range(max_retries):
         try:
             result = llm.chat(
                 system_prompt=QUIZ_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=150 * n + 64,
+                max_tokens=max_tokens,
                 stream=False,
+                temperature=0.2,
             )
             raw_text = result if isinstance(result, str) else ""
             if not raw_text:
@@ -172,6 +234,9 @@ def generate_quiz(
     # which is fast without hitting rate limits on free-tier APIs.
     BATCH_SIZE = 6
 
+    # Token budget: questions + longer explanations that teach the concept.
+    max_tokens = min(160 * num_questions + 120, 3000)
+
     if num_questions <= BATCH_SIZE:
         # Single call for small quizzes (<=6 questions)
         llm = get_client()
@@ -188,8 +253,9 @@ def generate_quiz(
                 result = llm.chat(
                     system_prompt=QUIZ_SYSTEM_PROMPT,
                     messages=[{"role": "user", "content": prompt}],
-                    max_tokens=150 * num_questions + 64,
+                    max_tokens=max_tokens,
                     stream=False,
+                    temperature=0.2,
                 )
                 raw_text = result if isinstance(result, str) else ""
                 if not raw_text:
@@ -236,6 +302,35 @@ def generate_quiz(
                     raise ValueError(f"Parallel batch generation failed: {e}") from e
 
         questions = all_questions[:num_questions]
+
+    # Remove exact or near-duplicate questions so the quiz stays varied.
+    questions = _deduplicate_questions(questions)
+
+    # If deduplication left us short, generate replacement questions that avoid existing ones.
+    refill_attempts = 0
+    while len(questions) < num_questions and refill_attempts < 3:
+        refill_attempts += 1
+        needed = num_questions - len(questions)
+        existing = "\n".join(f"- {q.get('question', '')}" for q in questions)
+        extra = (
+            "The following questions are ALREADY in the quiz. Generate a NEW question "
+            "that tests a DIFFERENT angle, scenario, or sub-topic. Do NOT duplicate any of them.\n"
+            f"{existing}"
+        )
+        try:
+            extra_batch = _generate_batch(
+                topic,
+                needed,
+                difficulty_prompt,
+                context_str,
+                batch_num=refill_attempts,
+                total_batches=3,
+                extra_instruction=extra,
+            )
+            questions = _deduplicate_questions(questions + extra_batch)[:num_questions]
+        except Exception as e:
+            print(f"Refill attempt {refill_attempts} failed: {e}")
+            break
 
     # Build final quiz object
     quiz_data = {

@@ -22,27 +22,86 @@ AGENT_MODES = {
     "tutor": {
         "label": "\U0001f9d1\u200d\U0001f3eb Tutor",
         "description": "Encouraging, highly communicative tutor who explains concepts thoroughly and dynamically",
-        "prompt": """You are an exceptional, student-friendly academic tutor. Your primary goal is to help students truly understand subjects across all levels (primary school through university) with warmth, empathy, and remarkable clarity.
+                                                                "prompt": """You are a brilliant, warm, and entertaining academic tutor — the kind of teacher students actually look forward to learning from. You teach at a high academic level but make it feel simple, fun, and obvious.
 
-## Communication Style & Emotional Intelligence
-- **Be incredibly encouraging and warm.** Speak like a favorite teacher who is deeply invested in the student's success. Celebrate their curiosity and validate their efforts.
-- **Build a connection.** Use conversational, natural language. Never sound robotic or like a sterile textbook.
-- **Be student-friendly.** Never make the student feel bad for not knowing something. Frame mistakes as excellent learning opportunities.
+Your mission:
+- Make every explanation feel like a fun conversation, not a lecture or essay.
+- Start with a one-sentence hook that tells the student why this topic is worth knowing.
+- Be academically smart, accurate, and thorough. Explicitly teach the concept, the hidden tricks, and the common mistakes — do NOT make the student figure things out on their own.
+- Use friendly, familiar words and real-life examples from everyday things (sports, games, food, money, music, phones, chores).
+- When you introduce a technical word, define it immediately with an everyday example.
+- Keep the tone light, encouraging, and slightly playful. Celebrate the student mentally when they get it. Never sound like a textbook or encyclopedia.
+- Do NOT ask the student questions like "Can you try...?", "What would you choose...?", or "Now you practice...". You are the teacher — give the full lesson, examples, and takeaways.
+- If a document was uploaded, it appears as "UPLOADED DOCUMENT EXTRACT". Reference it naturally when the student mentions notes/documents.
+- If the user uploads an image that is just a screenshot of the app UI or does not contain the problem, ignore it and answer the text question. Do not describe the UI, controls, or how to use the app.
+- Stay focused on the student's question. Do not drift into meta commentary about the app or the tool.
+- Each section below must add new information; do not repeat the same explanation across sections.
 
-## Dynamic Response Depth (Be Smart About Length)
-- **Gauge the required extensiveness.** If a student asks a broad concept, give a comprehensive explanation but break it down into highly scannable, punchy points. Avoid long, overwhelming walls of text.
-- **Expand on the "Why" and "How".** Always provide context and reasoning, but do so efficiently. 
-- **Use vivid examples and analogies.** Make abstract concepts concrete by connecting them to real-world scenarios.
-- **Match the interaction type.** For quick checks, be concise. For deep explanations, be thorough but use excellent formatting to make it easy to read.
+Required reply format (use this exact structure with emoji headers):
 
-## Handling Uploaded Documents
-- If a document is uploaded, it will be marked "UPLOADED DOCUMENT EXTRACT". When the student refers to "the document", "the doc", or "my notes", reference this specific content heavily and intelligently. Do NOT confuse your system instructions with their document.
+🎯 Why this matters
+- One sentence hook connecting the topic to a real student situation.
 
-## Formatting & Structure (CRITICAL)
-- **Be punchy and highly scannable.** You MUST use bullet points and numbered lists extensively. 
-- **Bold key terms.** Whenever you introduce a new concept or important word, **bold it** so it stands out to the student.
-- **Keep paragraphs incredibly short.** Never write a paragraph longer than 3 sentences. Break up text as much as possible so it is easy on the eyes.
-- **Guide the student step-by-step.** Instead of just giving the final answer, walk them through the thought process logically and clearly.
+📌 The Big Idea
+- 2-3 short sentences explaining the core concept in plain English.
+
+⚡ The Hidden Trick / How It Works
+- 2-3 short sentences revealing the shortcut, pattern, or key move a good teacher would share.
+
+🔍 Real-World Example
+- One concrete, relatable example the student can picture.
+
+🧠 Pro Tip / Memory Hack
+- The insider trick, mnemonic, or thing examiners love to test.
+
+⚠️ Common Mistake to Avoid
+- The one error students make most often and how to dodge it.
+
+✅ Quick Takeaway
+- 1-2 bullet points summarizing what to remember.
+
+Formatting rules:
+- Each section above should be at most 2-3 short sentences. No long paragraphs.
+- Use markdown **bold** only for the most important new terms.
+- Use bullet points or numbered lists only when they genuinely make the explanation clearer.
+- For equations and formulas, use LaTeX and write each complete equation on one line. Do NOT split symbols or terms into separate math blocks. For example, write $x^2 - 5x + 6 = 0$ as a single block, NOT as $x$ $2$ $-$ $5$ $x$ $+$ $6$ $=$ $0$.
+
+For math/science solutions, the flow inside the sections above becomes:
+1. Name the method and the hidden trick.
+2. Show the work in compact LaTeX, one complete equation per line.
+3. Explain the key move in plain English.
+4. List 1-2 common mistakes or exam traps.
+5. End with a clear `✅ Final Answer: ...` line.
+6. Verify by plugging the answer back in or checking against the original problem.
+
+Example for a math problem:
+```
+🎯 Why this matters
+Solving $x^2 - 5x + 6 = 0$ is the same as finding where a parabola crosses the x-axis — a skill that shows up in physics, finance, and engineering.
+
+📌 The Big Idea
+We want two numbers that multiply to 6 and add to -5. Those numbers are -2 and -3, so the quadratic factors cleanly.
+
+⚡ The Hidden Trick / How It Works
+Look at the constant term (6) and the middle coefficient (-5) first. If you can find the right pair of numbers, factoring is faster than the quadratic formula.
+
+🔍 Real-World Example
+Imagine a ball is thrown and its height is given by $x^2 - 5x + 6 = 0$. The two solutions tell you the two times the ball is at ground level.
+
+🧠 Pro Tip / Memory Hack
+When the middle number is negative and the last number is positive, both factors are negative.
+
+⚠️ Common Mistake to Avoid
+Don't forget that $-2 \times -3 = +6$ (not -6), and watch the signs when you set each factor to zero.
+
+✅ Final Answer: $x = 2$ or $x = 3$
+
+Verify:
+$$2^2 - 5(2) + 6 = 4 - 10 + 6 = 0 ✅$$
+$$3^2 - 5(3) + 6 = 9 - 15 + 6 = 0 ✅$$
+```
+
+A confused student is not dumb — the explanation just needs a better hook. Find that hook and make every reply feel like a mini-lesson worth reading.
 """,
     },
     "quiz_master": {
@@ -119,11 +178,12 @@ def get_system_prompt(mode: str = DEFAULT_AGENT_MODE, student_summary: str = "")
 
 CURRENT DATE: {current_date} (UTC). You MUST use this date as the current date when answering time-sensitive questions.
 
-GLOBAL GUIDELINES:
+GLOBAL GUIDELINES (the selected mode instructions above take precedence if they conflict with these general rules):
 
 1. SCOPE & IMAGE ANALYSIS:
    - For text-only questions: focus on academic/school/university subjects. Gently redirect purely off-topic chat.
    - For ANY image shared: analyse it immediately, thoroughly, and naturally — regardless of whether it is academic or not. Do NOT preface with "as a tutor…" disclaimers or scope warnings. Just describe, interpret, and analyse what you see in depth. Treat it as if you are a knowledgeable, curious observer who finds everything worth examining closely.
+   - Exception: if the image is a screenshot of this app's own UI (buttons, text boxes, the quiz generator, etc.) or does not contain the problem, do NOT describe the UI. Answer the user's text question and ignore the image.
    - If the user asks you to analyse an image "in the scope you would want", give your own rich, multi-layered analysis covering composition, colour, context, meaning, and any interesting details — no hedging.
 
 2. STUDENT KNOWLEDGE CONTEXT:
@@ -149,28 +209,27 @@ GLOBAL GUIDELINES:
 
 5. PLAIN LANGUAGE: Explain technical terms after using them.
 
-6. STRUCTURE & LENGTH: Provide thorough, well-developed paragraphs. Do not skimp on details unless the student explicitly asks for a short summary. Make your explanations rich and extensive. Aim for depth — cover the "what", "how", and "why" of each concept.
-
+6. STRUCTURE & LENGTH: Match the student's request. Be thorough when they ask for depth, concise when they ask for a quick answer. Prefer natural, flowing paragraphs. Avoid over-structuring with rigid "Step 1/Step 2" sections, recaps, or forced sign-offs unless the topic genuinely benefits from it.
 7. CONVERSATION & EMPATHY: Be an active, empathetic listener. If the student is confused, validate their struggle and try a highly creative, different approach. Use analogies from everyday life, stories, or visual descriptions.
 
-8. FOLLOW-UP: End your responses with an engaging, thought-provoking question to keep the conversation going and check their understanding. Ask questions that require the student to apply the knowledge, not just recall it.
-
+8. FOLLOW-UP: Only end with a follow-up question when it feels natural and useful. Do not force a question on every response.
 9. QUALITY CHECKLIST (ask yourself before responding):
    - [ ] Did I explain the WHY behind the concept, not just the WHAT?
-   - [ ] Did I use at least one concrete example or analogy?
-   - [ ] Did I bold the key terms so they stand out?
-   - [ ] Is my response well-structured with bullet points or steps?
+   - [ ] Did I use a concrete example or analogy when helpful?
+   - [ ] Did I bold the most important terms only?
+   - [ ] Is my response natural, clear, and appropriately structured?
    - [ ] Did I connect this to something the student might already know?
    - [ ] If they uploaded a document, did I reference it specifically?
-   - [ ] Did I think step-by-step before answering?
+   - [ ] Did I think through the answer before responding?
    - [ ] Did I consider potential counterexamples or edge cases?
-
 10. MATH & SCIENTIFIC NOTATION (CRITICAL — always follow this):
+   - **Compact equations only.** Each equation must be written in a single LaTeX block, on one line. BAD: putting every symbol on its own line like $x$ $2$ $-$ $5$ $x$ $+$ $6$ $=$ $0$. GOOD: $x^2 - 5x + 6 = 0$ in one inline block.
    - **Always use LaTeX** for ALL mathematical expressions, formulas, equations, and scientific notation.
    - Use single dollar signs for **inline math**: $x^2 + y^2 = z^2$, $\frac{d}{dx}$, $\lim_{x \to 0}$, $\sqrt{x}$, $e^x$, $\int_0^\infty$
    - Use double dollar signs for **block/display math** (standalone equations on their own line):
      $$\frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$
    - NEVER write math as raw ASCII like `x^2`, `sqrt(x)`, `e^x`, `lim_{x->0}`. Always wrap in `$...$`.
+   - Do NOT break a single equation into many tiny math blocks. Write each complete equation in one inline ($...$) or display ($$...$$) block and keep it on one line.
    - This applies everywhere: explanations, worked examples, quiz questions, step-by-step solutions, everywhere.
    - **CURRENCY**: If you are writing about money (e.g., US Dollars), you MUST escape the dollar sign like this: `\$20` or `\$50`. Do not use a plain `$` for currency, or the system will incorrectly render it as a math equation!
 """
@@ -242,6 +301,44 @@ def _strip_think(text: str) -> str:
     return re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
 
 
+def _collapse_inline_math(text: str) -> str:
+    """Merge adjacent inline LaTeX blocks so equations like $x$ $2$ render on one line."""
+    displays: list[str] = []
+
+    def _save_display(m: re.Match) -> str:
+        displays.append(m.group(0))
+        return f"__DISPLAY_{len(displays) - 1}__"
+
+    # Protect display math blocks so we only touch inline math.
+    text = re.sub(r"\$\$.*?\$\$", _save_display, text, flags=re.DOTALL)
+
+    parts: list[str] = []
+    pending_inner: str | None = None
+    cursor = 0
+    for m in re.finditer(r"\$([^$\n]+)\$", text):
+        before = text[cursor:m.start()]
+        inner = m.group(1)
+        if pending_inner is not None:
+            if re.fullmatch(r"\s*", before):
+                pending_inner = f"{pending_inner} {inner}"
+            else:
+                parts.append(f"${pending_inner}$")
+                parts.append(before)
+                pending_inner = inner
+        else:
+            parts.append(before)
+            pending_inner = inner
+        cursor = m.end()
+
+    if pending_inner is not None:
+        parts.append(f"${pending_inner}$")
+    parts.append(text[cursor:])
+
+    result = "".join(parts)
+    result = re.sub(r"__DISPLAY_(\d+)__", lambda m: displays[int(m.group(1))], result)
+    return result
+
+
 def _is_thinking_enabled() -> bool:
     """Check if we should allow think blocks through (for debugging)."""
     return os.environ.get("SHOW_THINKING", "").strip().lower() in ("1", "true", "yes")
@@ -310,15 +407,16 @@ def ask_tutor(
     agent_mode: str = DEFAULT_AGENT_MODE,
     student_model_summary: str = "",
 ) -> str:
-    if image_bytes is None and not student_model_summary:
+    has_vision = image_bytes is not None or bool(context_chunks)
+
+    if not has_vision and not student_model_summary:
         # Skip cache for time-sensitive questions so we always fetch live facts
         if not detect_time_sensitive(question):
             cached = get_cached_answer(question, MODEL, context_chunks)
             if cached is not None:
                 return cached
 
-    has_images = image_bytes is not None
-    llm = get_client(require_vision=has_images)
+    llm = get_client(require_vision=has_vision)
     messages = _build_messages(
         question, image_bytes=image_bytes, image_media_type=image_media_type,
         context_chunks=context_chunks, history=history,
@@ -330,8 +428,9 @@ def ask_tutor(
     result = llm.chat(system_prompt=system_prompt, messages=messages, max_tokens=4096, stream=False)
     answer = result if isinstance(result, str) else ""
     answer = _strip_think(answer).strip()
+    answer = _collapse_inline_math(answer)
 
-    if image_bytes is None and answer and not student_model_summary:
+    if not has_vision and answer and not student_model_summary:
         set_cached_answer(question, MODEL, context_chunks, answer)
 
     return answer
@@ -354,7 +453,7 @@ def ask_tutor_stream(
     NOTE: For vision requests (image attached), we use non-streaming to avoid
     model compatibility issues where streaming silently returns nothing.
     """
-    has_vision = image_bytes is not None
+    has_vision = image_bytes is not None or bool(context_chunks)
     llm = get_client(require_vision=has_vision)
     messages = _build_messages(
         question, image_bytes=image_bytes, image_media_type=image_media_type,
@@ -366,7 +465,7 @@ def ask_tutor_stream(
     # Higher max_tokens for richer, more thorough streaming answers
     stream_max_tokens = 4096
 
-    # Vision: try streaming first (faster perceived response), fall back to non-streaming
+    # Vision/document: try streaming first (faster perceived response), fall back to non-streaming
     if has_vision:
         try:
             raw = llm.chat(system_prompt=system_prompt, messages=messages, max_tokens=3072, stream=True)
@@ -383,6 +482,7 @@ def ask_tutor_stream(
                 # Warn if response was likely cut off (ended abruptly without punctuation)
             else:
                 answer = _strip_think(str(raw)).strip()
+                answer = _collapse_inline_math(answer)
                 yield answer if answer else "⚠️ The model returned an empty response. Please try again."
         except Exception:
             # Fall back to non-streaming (some providers don't stream vision)
@@ -390,15 +490,17 @@ def ask_tutor_stream(
                 result = llm.chat(system_prompt=system_prompt, messages=messages, max_tokens=3072, stream=False)
                 answer = result if isinstance(result, str) else ""
                 answer = _strip_think(answer).strip()
+                answer = _collapse_inline_math(answer)
                 yield answer if answer else "⚠️ The model returned an empty response. Please try again."
             except Exception as e:
                 yield f"⚠️ Could not analyse the image: {e}"
         return
 
     raw_stream = llm.chat(system_prompt=system_prompt, messages=messages, max_tokens=stream_max_tokens, stream=True)
-    
+
     if not isinstance(raw_stream, Generator):
         cleaned = _strip_think(str(raw_stream))
+        cleaned = _collapse_inline_math(cleaned)
         yield cleaned
         return
 
@@ -442,13 +544,14 @@ def transcribe_audio(audio_bytes: bytes) -> str:
 # Debate Mode: Dual-Agent (Feynman Technique)
 
 FELLOW_STUDENT_PROMPT = """You are a Fellow Student studying the same topic as the user.
-You are enthusiastic but you have made a COMMON MISCONCEPTION about this topic.
+You are enthusiastic but you hold COMMON MISCONCEPTIONS about this topic.
 Your role is to state your (incorrect) understanding confidently, so the user can correct you.
 
 Rules:
-- State ONE specific, believable misconception about the topic. Keep it to 2-3 sentences.
+- State ONE specific, believable misconception per turn. Keep it to 2-3 sentences.
 - Do NOT reveal that you are wrong. Act like you genuinely believe your answer.
 - Your mistake should be a common one students actually make (not obvious nonsense).
+- If the user just corrected you, briefly acknowledge their point while staying in character, then smoothly introduce a NEW misconception on the same topic. Do not repeat the same misconception.
 - End with a short question inviting the student to agree or share their view.
 - Do NOT ask multiple questions.
 """
@@ -461,9 +564,23 @@ Rules:
 - In 2-3 sentences, confirm what the student got RIGHT.
 - In 1-2 sentences, gently correct anything the student missed or got wrong.
 - Give a grade out of 10 for accuracy and clarity.
-- End with the NEXT misconception to debate, formatted as:
+- At the very end, on its own line, provide the NEXT misconception to debate formatted exactly as:
 [NEXT_MISCONCEPTION]: <Your new incorrect statement about the same topic>
 """
+
+
+def _extract_next_misconception(tutor_response: str) -> tuple[str, str]:
+    """Return (display_response, next_misconception)."""
+    next_misconception = ""
+    display_lines = []
+    marker = "[NEXT_MISCONCEPTION]:"
+    for line in tutor_response.split("\n"):
+        if line.strip().startswith(marker):
+            next_misconception = line.split(":", 1)[1].strip()
+        else:
+            display_lines.append(line)
+    display_response = "\n".join(display_lines).strip()
+    return display_response, next_misconception
 
 
 def run_debate_round(
@@ -474,66 +591,71 @@ def run_debate_round(
     student_model_summary: str = "",
 ) -> dict:
     """
-    Runs one round of the debate:
-    1. Fellow Student states/continues its misconception.
-    2. (If student replied) Tutor Grader evaluates the student's correction.
+    Runs one round of the debate.
+    First round: returns a Fellow Student misconception.
+    Later rounds: returns the Tutor's grading and a new Fellow Student reply.
     Returns: { 'fellow': str, 'tutor': str | None }
     """
     llm = get_client()
-
-    if not fellow_student_history:
-        fellow_msgs = [{"role": "user", "content": f"Let's talk about: {topic}. What do you know about it?"}]
-    else:
-        fellow_msgs = list(fellow_student_history)
 
     student_model_context = ""
     if student_model_summary:
         student_model_context = f"\nStudent background: {student_model_summary}"
 
-    if not student_correction and not fellow_student_history:
-        # First round: Fellow Student states a misconception
-        fellow_msgs.append({
-            "role": "user",
-            "content": f"Share what you know about {topic}.{student_model_context}"
-        })
+    # First round: generate Fellow Student's opening misconception.
+    if not student_correction:
+        fellow_msgs = list(fellow_student_history) if fellow_student_history else []
+        if not fellow_msgs or fellow_msgs[-1].get("role") != "user":
+            fellow_msgs.append({
+                "role": "user",
+                "content": f"Share what you know about {topic}.{student_model_context}"
+            })
         fellow_response = llm.chat(
             system_prompt=FELLOW_STUDENT_PROMPT + student_model_context,
             messages=fellow_msgs,
             max_tokens=512,
-            stream=False
+            stream=False,
+            temperature=0.7,
         )
         return {"fellow": fellow_response, "tutor": None}
 
-    # Student has responded — grade it
+    # Tutor grades the student's correction.
     tutor_msgs = list(tutor_history) if tutor_history else []
-    tutor_msgs.append({
-        "role": "user",
-        "content": f"The student was asked to correct a misconception about '{topic}'.\n\nStudent's correction:\n{student_correction}"
-    })
-    tutor_response = llm.chat(
+    # Avoid duplicating the current correction if the frontend already included it.
+    if not tutor_msgs or tutor_msgs[-1].get("content") != student_correction:
+        tutor_msgs.append({
+            "role": "user",
+            "content": f"The student was asked to correct a misconception about '{topic}'.\n\nStudent's correction:\n{student_correction}",
+        })
+
+    tutor_response_raw = llm.chat(
         system_prompt=TUTOR_GRADER_PROMPT + student_model_context,
         messages=tutor_msgs,
         max_tokens=512,
-        stream=False
+        stream=False,
+        temperature=0.5,
     )
+    tutor_response, next_misconception = _extract_next_misconception(tutor_response_raw)
 
-    # Extract next misconception from tutor response
-    next_misconception = ""
-    for line in tutor_response.split("\n"):
-        if line.startswith("[NEXT_MISCONCEPTION]:"):
-            next_misconception = line.split(":", 1)[1].strip()
-            break
+    # Fellow Student replies to the user's correction.
+    fellow_msgs = list(fellow_student_history) if fellow_student_history else []
+    # The history already contains the user's correction as the last user message.
+    # If it's empty, add the correction so the LLM has a prompt to respond to.
+    if not fellow_msgs:
+        fellow_msgs.append({"role": "user", "content": student_correction})
 
-    # Fellow Student states next misconception
-    fellow_msgs.append({"role": "user", "content": f"The student responded. Now share another misconception about {topic}."})
+    fellow_system = FELLOW_STUDENT_PROMPT + student_model_context
     if next_misconception:
-        fellow_msgs.append({"role": "user", "content": f"Consider this point: {next_misconception}"})
+        fellow_system += (
+            f"\n\nFor this turn, naturally bring up a new wrong point related to: {next_misconception}"
+        )
 
     fellow_response = llm.chat(
-        system_prompt=FELLOW_STUDENT_PROMPT,
+        system_prompt=fellow_system,
         messages=fellow_msgs,
         max_tokens=512,
-        stream=False
+        stream=False,
+        temperature=0.7,
     )
 
     return {"fellow": fellow_response, "tutor": tutor_response}

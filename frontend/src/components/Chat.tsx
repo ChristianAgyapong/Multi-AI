@@ -3,8 +3,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
+import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
-import { Send, Image as ImageIcon, Sparkles, Trash2, X, User, Square, Copy, Check } from "lucide-react";
+import { Send, Image as ImageIcon, Sparkles, Trash2, X, User, Square, Copy, Check, Bot, Calculator, Target } from "lucide-react";
 import { setStoredSessionId, withSessionHeaders } from "@/lib/session";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -33,7 +34,7 @@ interface Mode {
   agentMode: string;
 }
 
-const MODES: Mode[] = [
+export const MODES: Mode[] = [
   { id: "socratic", label: "Socratic", desc: "Guided questions", agentMode: "socratic_peer" },
   { id: "direct", label: "Direct", desc: "Clear explanations", agentMode: "tutor" },
   { id: "exam", label: "Exam Prep", desc: "Test-focused", agentMode: "quiz_master" },
@@ -42,10 +43,58 @@ const MODES: Mode[] = [
 const formatTime = (date: Date) =>
   date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-export default function Chat() {
+function normalizeMarkdown(text: string): string {
+  const displays: string[] = [];
+  let displayIndex = 0;
+
+  // Protect display math blocks so we only touch inline math.
+  const withDisplayPlaceholders = text.replace(/\$\$[\s\S]*?\$\$/g, (match) => {
+    displays.push(match);
+    return `__DISPLAY_${displayIndex++}__`;
+  });
+
+  // Merge adjacent inline LaTeX blocks like $x$ $2$ into a single $...$ block.
+  const inlineMatches = Array.from(withDisplayPlaceholders.matchAll(/\$([^$\n]+)\$/g));
+  const parts: string[] = [];
+  let cursor = 0;
+  let pendingInner: string | null = null;
+
+  for (const m of inlineMatches) {
+    const before = withDisplayPlaceholders.slice(cursor, m.index);
+    const inner = m[1];
+    if (pendingInner !== null) {
+      if (/^\s*$/.test(before)) {
+        pendingInner += ` ${inner}`;
+      } else {
+        parts.push(`$${pendingInner}$`);
+        parts.push(before);
+        pendingInner = inner;
+      }
+    } else {
+      parts.push(before);
+      pendingInner = inner;
+    }
+    cursor = (m.index ?? 0) + m[0].length;
+  }
+
+  if (pendingInner !== null) {
+    parts.push(`$${pendingInner}$`);
+  }
+  parts.push(withDisplayPlaceholders.slice(cursor));
+
+  let result = parts.join("");
+  result = result.replace(/__DISPLAY_(\d+)__/g, (_, i) => displays[Number(i)]);
+  return result;
+}
+
+interface ChatProps {
+  mode?: string;
+}
+
+export default function Chat({ mode: modeProp }: ChatProps = {}) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [agentMode, setAgentMode] = useState("direct");
+  const agentMode = modeProp ?? "direct";
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
@@ -127,7 +176,10 @@ export default function Chat() {
     const userImg = imagePreview;
     setInput("");
     setImagePreview(null);
-    if (textareaRef.current) textareaRef.current.style.height = "auto";
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.focus();
+    }
 
     const newMessages: Message[] = [
       ...messages,
@@ -164,7 +216,6 @@ body: JSON.stringify({
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let assistantText = "";
 
       while (true) {
         const { value, done } = await reader.read();
@@ -186,36 +237,28 @@ body: JSON.stringify({
             }
             if (msg.type === "done") break;
             if (msg.type === "token" && msg.text) {
-              assistantText += msg.text;
               setMessages((prev) => {
-                const updated = [...prev];
-                updated[updated.length - 1].content = assistantText;
-                return updated;
+                const last = prev[prev.length - 1];
+                return [...prev.slice(0, -1), { ...last, content: last.content + msg.text }];
               });
             }
           } catch {
             if (raw === "[DONE]") break;
-            if (raw.startsWith("[ERROR:")) {
-              assistantText += `\n\n⚠️ ${raw}`;
-            } else {
-              assistantText += raw;
-            }
             setMessages((prev) => {
-              const updated = [...prev];
-              updated[updated.length - 1].content = assistantText;
-              return updated;
+              const last = prev[prev.length - 1];
+              const addition = raw.startsWith("[ERROR:") ? `\n\n⚠️ ${raw}` : raw;
+              return [...prev.slice(0, -1), { ...last, content: last.content + addition }];
             });
           }
         }
       }
-    } catch (err: unknown) {
+    } catch (err) {
       // If the user pressed Stop, keep the partial response silently.
       if (err instanceof DOMException && err.name === "AbortError") return;
       const errorMessage = err instanceof Error ? err.message : String(err);
       setMessages((prev) => {
-        const updated = [...prev];
-        updated[updated.length - 1].content = `⚠️ Network Error: ${errorMessage}. Please make sure you are connected to the internet and the AI server is online.`;
-        return updated;
+        const last = prev[prev.length - 1];
+        return [...prev.slice(0, -1), { ...last, content: `⚠️ Network Error: ${errorMessage}. Please make sure you are connected to the internet and the AI server is online.` }];
       });
     } finally {
       setIsStreaming(false);
@@ -224,54 +267,20 @@ body: JSON.stringify({
   };
 
   return (
-    <div className="chat-shell flex flex-col h-full glass-panel relative overflow-hidden" onPaste={handlePaste}>
-      <div className="chat-toolbar shrink-0">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-sm font-semibold text-white leading-tight">
-            <Sparkles className="w-4 h-4 text-indigo-300 shrink-0" />
-            <span>Chat</span>
-          </div>
-          <p className="chat-toolbar-subtitle">Ask questions, upload screenshots, get step-by-step help</p>
-        </div>
-
-        <div className="flex items-center gap-3 flex-wrap justify-between md:justify-end">
-          <div className="flex items-center gap-1.5 flex-wrap">
-          {MODES.map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setAgentMode(id)}
-              className={`mode-pill ${agentMode === id ? "active" : ""}`}
-              title={MODES.find((m) => m.id === id)?.desc}
-            >
-              {label}
-            </button>
-          ))}
-          </div>
-          <button
-            onClick={() => setMessages([])}
-            className="p-2 text-[var(--text-muted)] hover:text-red-400 rounded-xl hover:bg-white/5 transition-colors"
-            title="Clear chat"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
+    <div className="chat-shell flex flex-col h-full relative overflow-hidden" onPaste={handlePaste}>
       {/* Messages List */}
-      <div className="chat-stage flex-1 overflow-y-auto px-4 py-6 md:px-8 bg-transparent">
-        <div className="chat-stage-inner max-w-4xl mx-auto flex flex-col space-y-8">
+      <div className="chat-stage flex-1 overflow-y-auto px-4 pt-0 pb-2 md:px-8 bg-transparent">
+        <div className="chat-stage-inner max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto flex flex-col space-y-4">
           {messages.length === 0 ? (
-            <div className="chat-empty flex flex-col items-center justify-center min-h-[62vh] text-center text-gray-400 gap-4 animate-fade-in-up px-2">
-              <div className="p-5 bg-indigo-500/10 rounded-full border border-indigo-500/20 shadow-[0_0_60px_rgba(99,102,241,0.12)]">
-                <Sparkles className="w-12 h-12 text-indigo-400 opacity-80 animate-pulse" />
+            <div className="chat-empty flex flex-col items-center justify-center min-h-[62vh] text-center text-gray-400 gap-5 animate-fade-in-up px-2">
+              <div className="relative p-6 rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-600/10 border border-indigo-500/30 shadow-[0_0_80px_rgba(99,102,241,0.18)]">
+                <Bot className="w-14 h-14 text-indigo-300" />
+                <span className="absolute inset-0 rounded-full animate-ping bg-indigo-500/10" />
               </div>
-              <h3 className="text-2xl font-medium text-gray-200">How can I help you learn today?</h3>
-              <p className="max-w-md text-sm text-gray-400 leading-relaxed">
-                Ask any math, physics, or general subject question. You can also paste screenshots directly into the chat!
-              </p>
+              <h3 className="gradient-text text-3xl font-semibold text-white">How can I help you learn today?</h3>
 
               {/* Quick-start suggestions */}
-              <div className="chat-empty-suggestions flex flex-wrap justify-center gap-2 max-w-2xl mt-5">
+              <div className="chat-empty-suggestions flex flex-wrap justify-center gap-2 max-w-2xl">
                 {SUGGESTIONS.map((s) => (
                   <button key={s} onClick={() => handleSend(s)} className="suggestion-chip">
                     <Sparkles className="w-3 h-3 shrink-0" />
@@ -283,12 +292,12 @@ body: JSON.stringify({
               {/* Feature highlights */}
               <div className="chat-feature-grid grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 max-w-lg w-full">
                 {[
-                  { emoji: "📷", label: "Paste screenshots", sub: "Ctrl+V any image" },
-                  { emoji: "🧮", label: "Live math", sub: "LaTeX rendering" },
-                  { emoji: "🎯", label: "3 tutor modes", sub: "Socratic · Direct · Exam" },
-                ].map(({ emoji, label, sub }) => (
-                  <div key={label} className="chat-feature-card flex flex-col items-center gap-1 p-3 rounded-xl">
-                    <span className="text-lg">{emoji}</span>
+                  { icon: ImageIcon, label: "Paste screenshots", sub: "Ctrl+V any image" },
+                  { icon: Calculator, label: "Live math", sub: "LaTeX rendering" },
+                  { icon: Target, label: "3 tutor modes", sub: "Socratic · Direct · Exam" },
+                ].map(({ icon: Icon, label, sub }) => (
+                  <div key={label} className="chat-feature-card group flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all hover:-translate-y-1 hover:border-indigo-500/30 hover:shadow-[0_8px_24px_rgba(99,102,241,0.15)]">
+                    <Icon className="w-5 h-5 text-indigo-400 group-hover:text-indigo-300 transition-colors" />
                     <span className="text-xs font-medium text-[var(--text-main)]">{label}</span>
                     <span className="text-[0.65rem] text-[var(--text-dim)]">{sub}</span>
                   </div>
@@ -303,43 +312,46 @@ body: JSON.stringify({
               return (
                 <div
                   key={idx}
-                  className={`group flex gap-4 animate-fade-in-up w-full ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+                  className={`group flex gap-3 animate-fade-in-up w-full ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}
                   style={{ animationDelay: `${Math.min(idx * 0.05, 0.3)}s` }}
                 >
                   {/* Avatar */}
                   <div className="flex-shrink-0 mt-1">
-                    <div className={`chat-avatar w-9 h-9 rounded-full flex items-center justify-center shadow-md ${
+                    <div className={`chat-avatar w-8 h-8 rounded-full flex items-center justify-center shadow-md ${
                       m.role === "user"
                         ? "bg-gradient-to-br from-indigo-500 to-purple-600 border border-indigo-400/50"
                         : "bg-[#1e293b] border border-[var(--border-color)]"
                     }`}>
                       {m.role === "user" ? (
-                        <User className="w-5 h-5 text-white" />
+                        <User className="w-4 h-4 text-white" />
                       ) : (
-                        <Sparkles className="w-5 h-5 text-indigo-400" />
+                        <Bot className="w-4 h-4 text-indigo-400" />
                       )}
                     </div>
                   </div>
 
                   {/* Message Bubble */}
                   <div
-                    className={`flex flex-col max-w-[85%] md:max-w-[75%] ${
-                      m.role === "user" ? "items-end" : "items-start"
+                    className={`flex flex-col ${
+                      m.role === "user"
+                        ? "items-end max-w-[85%] md:max-w-[75%]"
+                        : "items-start flex-1 min-w-0 pr-2"
                     }`}
                   >
                     <div
-                      className={`chat-bubble relative p-5 shadow-lg backdrop-blur-xl transition-all duration-300 ${
+                      className={`chat-bubble relative transition-all duration-300 ${
                         m.role === "user"
-                          ? "bg-gradient-to-br from-indigo-500/80 to-purple-600/80 border border-indigo-400/40 text-white rounded-[24px] rounded-tr-[4px]"
-                          : "bg-[#0f172a]/70 border border-white/10 text-gray-100 rounded-[24px] rounded-tl-[4px]"
+                          ? `${m.image ? "p-4" : "px-4 py-2.5"} shadow-lg backdrop-blur-xl bg-gradient-to-br from-indigo-500/80 to-purple-600/80 border border-indigo-400/40 text-white rounded-2xl rounded-tr-sm`
+                          : "w-full py-2 pr-10 pl-0 bg-transparent border-0 shadow-none text-gray-100 rounded-none text-left"
                       } ${isLastStreaming ? "is-streaming" : ""}`}
                     >
                       {/* Copy button (assistant messages only) */}
                       {m.role === "assistant" && m.content && (
                         <button
                           onClick={() => handleCopy(idx, m.content)}
-                          className="message-actions absolute top-2.5 right-2.5 p-1.5 rounded-lg text-gray-500 hover:text-indigo-300 hover:bg-white/5 transition-colors"
+                          className="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-gray-500 hover:text-indigo-300 hover:bg-white/5 transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
                           title={copiedIdx === idx ? "Copied!" : "Copy response"}
+                          aria-label={copiedIdx === idx ? "Copied" : "Copy response"}
                         >
                           {copiedIdx === idx ? (
                             <Check className="w-3.5 h-3.5 text-emerald-400" />
@@ -357,7 +369,7 @@ body: JSON.stringify({
                         />
                       )}
 
-                      <div className="prose prose-invert max-w-none text-[0.95rem] leading-relaxed break-words">
+                      <div className={`prose prose-invert max-w-none text-[0.95rem] leading-relaxed break-words ${m.role === "user" ? "[&_p]:my-0" : ""}`}>
                         {showTyping ? (
                           <div className="flex items-center gap-1.5 py-1.5">
                             <span className="typing-dot" />
@@ -365,8 +377,8 @@ body: JSON.stringify({
                             <span className="typing-dot" style={{ animationDelay: "0.3s" }} />
                           </div>
                         ) : (
-                          <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                            {showCaret ? `${m.content} ▍` : m.content}
+                          <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
+                            {showCaret ? `${normalizeMarkdown(m.content)} ▍` : normalizeMarkdown(m.content)}
                           </ReactMarkdown>
                         )}
                       </div>
@@ -381,13 +393,13 @@ body: JSON.stringify({
               );
             })
           )}
-          <div ref={messagesEndRef} className="h-4" />
+          <div ref={messagesEndRef} className="h-2" />
         </div>
       </div>
 
       {/* Input Bar Area (Pinned to Bottom of Chat) */}
-      <div className="chat-composer-shell flex-shrink-0 p-4 z-20">
-        <div className="max-w-4xl mx-auto flex flex-col gap-2">
+      <div className="chat-composer-shell flex-shrink-0 py-3 px-4 z-20">
+        <div className="max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto flex flex-col gap-2">
 
           {/* Image Preview Thumbnail */}
           {imagePreview && (
@@ -421,6 +433,17 @@ body: JSON.stringify({
               rows={1}
               className="flex-1 bg-transparent border-none px-3 py-2 text-[0.95rem] text-white placeholder-gray-400 focus:outline-none focus:ring-0 resize-none max-h-[132px]"
             />
+
+            {messages.length > 0 && !isStreaming && (
+              <button
+                onClick={() => setMessages([])}
+                className="mr-1 p-2 rounded-full text-gray-500 hover:text-red-400 hover:bg-white/5 transition-colors"
+                title="Clear chat"
+                type="button"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
 
             <button
               onClick={isStreaming ? handleStop : () => handleSend()}

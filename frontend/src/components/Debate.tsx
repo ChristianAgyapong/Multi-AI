@@ -1,8 +1,11 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Users, Send, RefreshCw, Trash2, Bot, GraduationCap, Sparkles } from "lucide-react";
+import { Users, Send, RefreshCw, Trash2, Bot, GraduationCap, Sparkles, Square } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import remarkGfm from "remark-gfm";
+import rehypeKatex from "rehype-katex";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -19,9 +22,10 @@ const TOPIC_SUGGESTIONS = [
 ];
 
 const STEPS = [
-  { icon: Bot, label: "Fellow Student explains (with mistakes)" },
-  { icon: Users, label: "You correct their errors" },
-  { icon: GraduationCap, label: "Tutor grades your understanding" },
+  { icon: Bot, title: "Pick a topic", desc: "Enter any concept you want to master." },
+  { icon: GraduationCap, title: "Fellow Student explains it", desc: "An AI peer gives an explanation that deliberately contains mistakes." },
+  { icon: Users, title: "You correct the mistakes", desc: "Read carefully, then message back what is wrong and what the correct version should be." },
+  { icon: Sparkles, title: "Tutor grades your understanding", desc: "A Tutor AI checks your corrections and tells you what you got right or missed." },
 ];
 
 export default function Debate() {
@@ -30,7 +34,9 @@ export default function Debate() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [sessionActive, setSessionActive] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -41,7 +47,10 @@ export default function Debate() {
   }, [messages, loading]);
 
   const startDebate = async () => {
-    if (!topic.trim()) return;
+    if (!topic.trim() || loading) return;
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+    setError(null);
     setLoading(true);
     setMessages([]);
     setSessionActive(true);
@@ -50,20 +59,33 @@ export default function Debate() {
       const res = await fetch(`${API_BASE}/debate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: abortRef.current.signal,
         body: JSON.stringify({ topic, fellow_student_history: [], tutor_history: [] }),
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || `HTTP ${res.status}`);
+      }
       const data = await res.json();
       if (data.fellow) setMessages([{ role: "fellow", content: data.fellow }]);
-    } catch {
-      alert("Failed to start debate. Is the backend running?");
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      setError(err instanceof Error ? err.message : "Failed to start debate. Is the backend running?");
       setSessionActive(false);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleCancel = () => {
+    abortRef.current?.abort();
+  };
+
   const handleSend = async () => {
     if (!input.trim() || loading) return;
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+    setError(null);
     const studentText = input;
     setInput("");
 
@@ -83,6 +105,7 @@ export default function Debate() {
       const res = await fetch(`${API_BASE}/debate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: abortRef.current.signal,
         body: JSON.stringify({
           topic,
           student_correction: studentText,
@@ -90,6 +113,10 @@ export default function Debate() {
           tutor_history: tutorHistory,
         }),
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || `HTTP ${res.status}`);
+      }
       const data = await res.json();
 
       setMessages((prev) => {
@@ -98,12 +125,15 @@ export default function Debate() {
         if (data.fellow) updated.push({ role: "fellow", content: data.fellow });
         return updated;
       });
-    } catch {
-      alert("Failed to send message.");
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      setError(err instanceof Error ? err.message : "Failed to send message.");
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => () => { abortRef.current?.abort(); }, []);
 
   const endDebate = () => {
     setSessionActive(false);
@@ -170,13 +200,19 @@ export default function Debate() {
 
             {/* How it works */}
             <div className="space-y-2 text-left">
-              {STEPS.map(({ icon: Icon, label }, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/40 border border-[var(--border-color)]">
-                  <div className="w-7 h-7 rounded-full bg-pink-500/15 border border-pink-500/30 flex items-center justify-center shrink-0">
+              <p className="text-[0.7rem] uppercase tracking-wider text-pink-300/80 font-semibold mb-1.5 text-center">How it works</p>
+              {STEPS.map(({ icon: Icon, title, desc }, i) => (
+                <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-slate-800/40 border border-[var(--border-color)]">
+                  <div className="w-7 h-7 rounded-full bg-pink-500/15 border border-pink-500/30 flex items-center justify-center shrink-0 mt-0.5">
                     <span className="text-xs font-bold text-pink-400">{i + 1}</span>
                   </div>
-                  <Icon size={14} className="text-[var(--text-muted)] shrink-0" />
-                  <span className="text-xs text-[var(--text-muted)]">{label}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <Icon size={14} className="text-pink-300 shrink-0" />
+                      <span className="text-xs font-semibold text-[var(--text-main)]">{title}</span>
+                    </div>
+                    <p className="text-[0.75rem] text-[var(--text-muted)] leading-snug">{desc}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -209,6 +245,12 @@ export default function Debate() {
                 {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
                 {loading ? "Starting…" : "Start Debate Session"}
               </button>
+
+              {error && (
+                <div className="px-4 py-2.5 rounded-xl text-xs font-medium text-red-200 bg-red-500/10 border border-red-500/20">
+                  {error}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -238,7 +280,9 @@ export default function Debate() {
                   </div>
                   <div className={`max-w-[88%] rounded-2xl p-4 border ${style.bg}`}>
                     <div className="prose prose-invert max-w-none text-sm leading-relaxed">
-                      <ReactMarkdown>{m.content}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
+                        {m.content}
+                      </ReactMarkdown>
                     </div>
                   </div>
                 </div>
@@ -257,23 +301,28 @@ export default function Debate() {
           </div>
 
           <div className="shrink-0 px-4 py-3 border-t border-[var(--border-color)] bg-slate-900/40">
+            {error && (
+              <div className="max-w-3xl mx-auto mb-2 px-4 py-2.5 rounded-xl text-xs font-medium text-red-200 bg-red-500/10 border border-red-500/20">
+                {error}
+              </div>
+            )}
             <div className="flex items-end gap-2 max-w-3xl mx-auto">
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                onKeyDown={(e) => e.key === "Enter" && !loading && handleSend()}
                 placeholder="Correct the fellow student…"
                 disabled={loading}
                 className="input-field flex-1"
               />
               <button
-                onClick={handleSend}
-                disabled={loading || !input.trim()}
+                onClick={loading ? handleCancel : handleSend}
+                disabled={!loading && !input.trim()}
                 className="btn-primary p-2.5 shrink-0"
                 style={{ background: "linear-gradient(135deg, #db2777, #ec4899)" }}
               >
-                {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                {loading ? <Square className="w-4 h-4 fill-current" /> : <Send className="w-4 h-4" />}
               </button>
             </div>
           </div>
