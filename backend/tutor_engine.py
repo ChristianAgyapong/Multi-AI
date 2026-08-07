@@ -33,6 +33,9 @@ Your mission:
 - Keep the tone light, encouraging, and slightly playful. Celebrate the student mentally when they get it. Never sound like a textbook or encyclopedia.
 - Do NOT ask the student questions like "Can you try...?", "What would you choose...?", or "Now you practice...". You are the teacher — give the full lesson, examples, and takeaways.
 - If a document was uploaded, it appears as "UPLOADED DOCUMENT EXTRACT". Reference it naturally when the student mentions notes/documents.
+- If the user uploads an image that is just a screenshot of the app UI or does not contain the problem, ignore it and answer the text question. Do not describe the UI, controls, or how to use the app.
+- Stay focused on the student's question. Do not drift into meta commentary about the app or the tool.
+- Each section below must add new information; do not repeat the same explanation across sections.
 
 Required reply format (use this exact structure with emoji headers):
 
@@ -61,7 +64,7 @@ Formatting rules:
 - Each section above should be at most 2-3 short sentences. No long paragraphs.
 - Use markdown **bold** only for the most important new terms.
 - Use bullet points or numbered lists only when they genuinely make the explanation clearer.
-- For equations and formulas, use LaTeX and write each complete equation on one line. Do NOT split symbols or terms into separate math blocks (no putting $x$, $2$, $-$ each on their own line).
+- For equations and formulas, use LaTeX and write each complete equation on one line. Do NOT split symbols or terms into separate math blocks. For example, write $x^2 - 5x + 6 = 0$ as a single block, NOT as $x$ $2$ $-$ $5$ $x$ $+$ $6$ $=$ $0$.
 
 For math/science solutions, the flow inside the sections above becomes:
 1. Name the method and the hidden trick.
@@ -180,6 +183,7 @@ GLOBAL GUIDELINES (the selected mode instructions above take precedence if they 
 1. SCOPE & IMAGE ANALYSIS:
    - For text-only questions: focus on academic/school/university subjects. Gently redirect purely off-topic chat.
    - For ANY image shared: analyse it immediately, thoroughly, and naturally — regardless of whether it is academic or not. Do NOT preface with "as a tutor…" disclaimers or scope warnings. Just describe, interpret, and analyse what you see in depth. Treat it as if you are a knowledgeable, curious observer who finds everything worth examining closely.
+   - Exception: if the image is a screenshot of this app's own UI (buttons, text boxes, the quiz generator, etc.) or does not contain the problem, do NOT describe the UI. Answer the user's text question and ignore the image.
    - If the user asks you to analyse an image "in the scope you would want", give your own rich, multi-layered analysis covering composition, colour, context, meaning, and any interesting details — no hedging.
 
 2. STUDENT KNOWLEDGE CONTEXT:
@@ -297,6 +301,44 @@ def _strip_think(text: str) -> str:
     return re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
 
 
+def _collapse_inline_math(text: str) -> str:
+    """Merge adjacent inline LaTeX blocks so equations like $x$ $2$ render on one line."""
+    displays: list[str] = []
+
+    def _save_display(m: re.Match) -> str:
+        displays.append(m.group(0))
+        return f"__DISPLAY_{len(displays) - 1}__"
+
+    # Protect display math blocks so we only touch inline math.
+    text = re.sub(r"\$\$.*?\$\$", _save_display, text, flags=re.DOTALL)
+
+    parts: list[str] = []
+    pending_inner: str | None = None
+    cursor = 0
+    for m in re.finditer(r"\$([^$\n]+)\$", text):
+        before = text[cursor:m.start()]
+        inner = m.group(1)
+        if pending_inner is not None:
+            if re.fullmatch(r"\s*", before):
+                pending_inner = f"{pending_inner} {inner}"
+            else:
+                parts.append(f"${pending_inner}$")
+                parts.append(before)
+                pending_inner = inner
+        else:
+            parts.append(before)
+            pending_inner = inner
+        cursor = m.end()
+
+    if pending_inner is not None:
+        parts.append(f"${pending_inner}$")
+    parts.append(text[cursor:])
+
+    result = "".join(parts)
+    result = re.sub(r"__DISPLAY_(\d+)__", lambda m: displays[int(m.group(1))], result)
+    return result
+
+
 def _is_thinking_enabled() -> bool:
     """Check if we should allow think blocks through (for debugging)."""
     return os.environ.get("SHOW_THINKING", "").strip().lower() in ("1", "true", "yes")
@@ -386,6 +428,7 @@ def ask_tutor(
     result = llm.chat(system_prompt=system_prompt, messages=messages, max_tokens=4096, stream=False)
     answer = result if isinstance(result, str) else ""
     answer = _strip_think(answer).strip()
+    answer = _collapse_inline_math(answer)
 
     if not has_vision and answer and not student_model_summary:
         set_cached_answer(question, MODEL, context_chunks, answer)
@@ -439,6 +482,7 @@ def ask_tutor_stream(
                 # Warn if response was likely cut off (ended abruptly without punctuation)
             else:
                 answer = _strip_think(str(raw)).strip()
+                answer = _collapse_inline_math(answer)
                 yield answer if answer else "⚠️ The model returned an empty response. Please try again."
         except Exception:
             # Fall back to non-streaming (some providers don't stream vision)
@@ -446,15 +490,17 @@ def ask_tutor_stream(
                 result = llm.chat(system_prompt=system_prompt, messages=messages, max_tokens=3072, stream=False)
                 answer = result if isinstance(result, str) else ""
                 answer = _strip_think(answer).strip()
+                answer = _collapse_inline_math(answer)
                 yield answer if answer else "⚠️ The model returned an empty response. Please try again."
             except Exception as e:
                 yield f"⚠️ Could not analyse the image: {e}"
         return
 
     raw_stream = llm.chat(system_prompt=system_prompt, messages=messages, max_tokens=stream_max_tokens, stream=True)
-    
+
     if not isinstance(raw_stream, Generator):
         cleaned = _strip_think(str(raw_stream))
+        cleaned = _collapse_inline_math(cleaned)
         yield cleaned
         return
 

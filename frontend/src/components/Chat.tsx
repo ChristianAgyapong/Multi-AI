@@ -43,6 +43,50 @@ export const MODES: Mode[] = [
 const formatTime = (date: Date) =>
   date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
+function normalizeMarkdown(text: string): string {
+  const displays: string[] = [];
+  let displayIndex = 0;
+
+  // Protect display math blocks so we only touch inline math.
+  const withDisplayPlaceholders = text.replace(/\$\$[\s\S]*?\$\$/g, (match) => {
+    displays.push(match);
+    return `__DISPLAY_${displayIndex++}__`;
+  });
+
+  // Merge adjacent inline LaTeX blocks like $x$ $2$ into a single $...$ block.
+  const inlineMatches = Array.from(withDisplayPlaceholders.matchAll(/\$([^$\n]+)\$/g));
+  const parts: string[] = [];
+  let cursor = 0;
+  let pendingInner: string | null = null;
+
+  for (const m of inlineMatches) {
+    const before = withDisplayPlaceholders.slice(cursor, m.index);
+    const inner = m[1];
+    if (pendingInner !== null) {
+      if (/^\s*$/.test(before)) {
+        pendingInner += ` ${inner}`;
+      } else {
+        parts.push(`$${pendingInner}$`);
+        parts.push(before);
+        pendingInner = inner;
+      }
+    } else {
+      parts.push(before);
+      pendingInner = inner;
+    }
+    cursor = (m.index ?? 0) + m[0].length;
+  }
+
+  if (pendingInner !== null) {
+    parts.push(`$${pendingInner}$`);
+  }
+  parts.push(withDisplayPlaceholders.slice(cursor));
+
+  let result = parts.join("");
+  result = result.replace(/__DISPLAY_(\d+)__/g, (_, i) => displays[Number(i)]);
+  return result;
+}
+
 interface ChatProps {
   mode?: string;
 }
@@ -334,7 +378,7 @@ body: JSON.stringify({
                           </div>
                         ) : (
                           <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
-                            {showCaret ? `${m.content} ▍` : m.content}
+                            {showCaret ? `${normalizeMarkdown(m.content)} ▍` : normalizeMarkdown(m.content)}
                           </ReactMarkdown>
                         )}
                       </div>
