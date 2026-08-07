@@ -137,7 +137,8 @@ export default function Quiz() {
 
       {/* Controls */}
       <div className="quiz-controls shrink-0 px-4 py-3 border-b border-white/5 bg-transparent">
-        <div className="quiz-controls-grid">
+        <div className="max-w-3xl lg:max-w-4xl mx-auto">
+          <div className="quiz-controls-grid">
           <input
             type="text"
             value={topic}
@@ -231,6 +232,7 @@ export default function Quiz() {
             {error}
           </div>
         )}
+        </div>
       </div>
 
       {/* Content */}
@@ -255,7 +257,7 @@ export default function Quiz() {
         )}
 
         {questions.length > 0 && (
-          <div className="max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto px-4 py-4 space-y-4">
+          <div className="max-w-3xl lg:max-w-4xl mx-auto px-4 py-4 space-y-4">
             {questions.map((q, idx) => (
               <div
                 key={idx}
