@@ -124,46 +124,48 @@ export default function Flashcards() {
 
       {/* Generator */}
       <div className="px-5 py-4 border-b border-[var(--border-color)] shrink-0">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <input
-            type="text"
-            value={sourceText}
-            onChange={(e) => setSourceText(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
-            placeholder="Paste lecture notes or text to generate flashcards…"
-            className="input-field flex-1"
-          />
-          <button
-            onClick={handleGenerate}
-            disabled={loading || !sourceText.trim()}
-            className="btn-primary shrink-0 whitespace-nowrap"
-            style={{ background: "linear-gradient(135deg, #d97706, #f59e0b)" }}
-          >
-            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {loading ? "Generating…" : "Generate Cards"}
-          </button>
+        <div className="max-w-3xl lg:max-w-4xl mx-auto">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="text"
+              value={sourceText}
+              onChange={(e) => setSourceText(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
+              placeholder="Paste lecture notes or text to generate flashcards…"
+              className="input-field flex-1"
+            />
+            <button
+              onClick={handleGenerate}
+              disabled={loading || !sourceText.trim()}
+              className="btn-primary shrink-0 whitespace-nowrap"
+              style={{ background: "linear-gradient(135deg, #d97706, #f59e0b)" }}
+            >
+              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              {loading ? "Generating…" : "Generate Cards"}
+            </button>
+          </div>
+
+          {error && (
+            <div className="mt-3 px-4 py-2.5 rounded-xl text-xs font-medium text-red-200 bg-red-500/10 border border-red-500/20">
+              {error}
+            </div>
+          )}
+
+          {flashcards.length > 0 && (
+            <div className="mt-3">
+              <div className="flex justify-between text-xs text-[var(--text-muted)] mb-1.5">
+                <span>Card {currentIndex + 1} of {flashcards.length}</span>
+                <span>{studied.size} reviewed · {Math.round(progressPct)}%</span>
+              </div>
+              <div className="progress-bar">
+                <div
+                  className="progress-bar-fill"
+                  style={{ width: `${progressPct}%`, background: "linear-gradient(90deg, #d97706, #fbbf24)" }}
+                />
+              </div>
+            </div>
+          )}
         </div>
-
-        {error && (
-          <div className="mt-3 px-4 py-2.5 rounded-xl text-xs font-medium text-red-200 bg-red-500/10 border border-red-500/20">
-            {error}
-          </div>
-        )}
-
-        {flashcards.length > 0 && (
-          <div className="mt-3">
-            <div className="flex justify-between text-xs text-[var(--text-muted)] mb-1.5">
-              <span>Card {currentIndex + 1} of {flashcards.length}</span>
-              <span>{studied.size} reviewed · {Math.round(progressPct)}%</span>
-            </div>
-            <div className="progress-bar">
-              <div
-                className="progress-bar-fill"
-                style={{ width: `${progressPct}%`, background: "linear-gradient(90deg, #d97706, #fbbf24)" }}
-              />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Viewer */}
