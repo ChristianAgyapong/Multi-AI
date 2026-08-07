@@ -1,5 +1,5 @@
 {
-  "interaction_count": 226,
+  "interaction_count": 228,
   "flashcards": [
     {
       "front": "Photosynthesis",
@@ -160,7 +160,7 @@
       "quiz_total": 0
     },
     "teach": {
-      "questions_asked": 8,
+      "questions_asked": 9,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -436,6 +436,12 @@
       "quiz_total": 0
     },
     "ashanti": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "nice": {
       "questions_asked": 1,
       "quiz_attempts": 0,
       "quiz_correct": 0,
