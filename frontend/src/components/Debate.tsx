@@ -264,7 +264,8 @@ export default function Debate() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+          <div className="flex-1 overflow-y-auto px-5 py-4">
+            <div className="max-w-3xl lg:max-w-4xl mx-auto space-y-5">
             {messages.map((m, idx) => {
               const style = roleStyles[m.role];
               const Icon = style.icon;
@@ -298,6 +299,7 @@ export default function Debate() {
               </div>
             )}
             <div ref={messagesEndRef} />
+            </div>
           </div>
 
           <div className="shrink-0 px-4 py-3 border-t border-[var(--border-color)] bg-slate-900/40">
