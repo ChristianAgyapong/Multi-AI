@@ -132,11 +132,20 @@ export default function Sidebar({ onStartSession, chatMode, setChatMode }: Sideb
         headers: withSessionHeaders(),
         body: formData,
       });
-      const data = await res.json();
+      let data: { session_id?: string; detail?: string; message?: string } = {};
+      try {
+        data = await res.json();
+      } catch {
+        // non-JSON error response
+      }
+      if (!res.ok) {
+        setError(data.detail || data.message || `Upload failed (${res.status})`);
+        return;
+      }
       setStoredSessionId(data.session_id);
-      void fetchData();
+      await fetchData();
     } catch {
-      setError("Failed to upload material.");
+      setError("Failed to upload material. Is the backend running?");
     } finally {
       setUploading(false);
       e.target.value = "";
@@ -245,6 +254,12 @@ export default function Sidebar({ onStartSession, chatMode, setChatMode }: Sideb
               Upload PDFs, notes, or slides so answers stay grounded in your class content.
             </p>
 
+            {error && (
+              <div className="mb-3 px-3 py-2 rounded-lg text-[0.75rem] font-medium text-red-200 bg-red-500/10 border border-red-500/20">
+                {error}
+              </div>
+            )}
+
             {materials?.sources && materials.sources.length > 0 && (
               <>
                 <div className="flex items-center justify-between mb-2">
@@ -258,11 +273,6 @@ export default function Sidebar({ onStartSession, chatMode, setChatMode }: Sideb
                     </span>
                   )}
                 </div>
-                {error && (
-                <div className="mb-3 px-3 py-2 rounded-lg text-[0.75rem] font-medium text-red-200 bg-red-500/10 border border-red-500/20">
-                  {error}
-                </div>
-              )}
 
               <div className="max-h-28 overflow-y-auto flex flex-col gap-1 mb-3">
                   {materials.sources.map((src) => (

@@ -328,19 +328,44 @@ def quiz(req: QuizRequest, request: Request):
 
 @app.post("/materials")
 async def upload_material(file: UploadFile, request: Request):
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
+
     sid = _get_session_id(request)
     store = _get_store(sid)
 
-    file_bytes = await file.read()
-    if file.filename and file.filename.endswith(".pdf"):
-        text = extract_text_from_pdf(file_bytes)
-    elif file.filename and file.filename.endswith(".docx"):
-        text = extract_text_from_docx(file_bytes)
-    elif file.filename and file.filename.endswith((".ppt", ".pptx")):
-        from backend.rag import extract_text_from_pptx
-        text = extract_text_from_pptx(file_bytes)
-    else:
-        text = file_bytes.decode("utf-8", errors="ignore")
+    lower = file.filename.lower()
+    supported_text = (".txt", ".md", ".json", ".csv")
+
+    try:
+        file_bytes = await file.read()
+        if lower.endswith(".pdf"):
+            text = extract_text_from_pdf(file_bytes)
+        elif lower.endswith(".docx"):
+            text = extract_text_from_docx(file_bytes)
+        elif lower.endswith(".pptx"):
+            try:
+                from backend.rag import extract_text_from_pptx
+                text = extract_text_from_pptx(file_bytes)
+            except ImportError as e:
+                raise HTTPException(status_code=422, detail=f"PowerPoint support is not installed: {e}")
+        elif lower.endswith(supported_text):
+            text = file_bytes.decode("utf-8", errors="ignore")
+        else:
+            raise HTTPException(
+                status_code=415,
+                detail=f"Unsupported file type: {file.filename}. Upload .txt, .md, .pdf, .docx, or .pptx.",
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Could not read file: {e}")
+
+    if not text or not text.strip():
+        raise HTTPException(
+            status_code=422,
+            detail=f"No text could be extracted from {file.filename}. It may be a scanned image or an unsupported format.",
+        )
 
     n_chunks = store.add_document(file.filename or "unknown", text)
     return {"filename": file.filename, "chunks_added": n_chunks, "session_id": sid}
