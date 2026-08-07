@@ -514,10 +514,17 @@ def provider_status():
 
     if provider == "openai":
         api_key = os.environ.get("OPENAI_API_KEY")
+        vision_key = os.environ.get("VISION_API_KEY") or os.environ.get("OPENROUTER_API_KEY")
+        vision_base = os.environ.get("VISION_BASE_URL") or os.environ.get("OPENROUTER_BASE_URL")
         return {
             "provider": "openai",
             "connected": bool(api_key),
             "message": "OpenAI API key found" if api_key else "OPENAI_API_KEY not set",
+            "vision_provider": {
+                "provider": "openrouter" if "openrouter.ai" in (vision_base or "").lower() else "vision",
+                "connected": bool(vision_key and vision_base),
+                "message": "Vision provider configured" if (vision_key and vision_base) else "No vision/document provider set",
+            },
         }
 
     if provider == "anthropic":

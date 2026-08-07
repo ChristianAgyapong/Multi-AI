@@ -365,15 +365,16 @@ def ask_tutor(
     agent_mode: str = DEFAULT_AGENT_MODE,
     student_model_summary: str = "",
 ) -> str:
-    if image_bytes is None and not student_model_summary:
+    has_vision = image_bytes is not None or bool(context_chunks)
+
+    if not has_vision and not student_model_summary:
         # Skip cache for time-sensitive questions so we always fetch live facts
         if not detect_time_sensitive(question):
             cached = get_cached_answer(question, MODEL, context_chunks)
             if cached is not None:
                 return cached
 
-    has_images = image_bytes is not None
-    llm = get_client(require_vision=has_images)
+    llm = get_client(require_vision=has_vision)
     messages = _build_messages(
         question, image_bytes=image_bytes, image_media_type=image_media_type,
         context_chunks=context_chunks, history=history,
@@ -386,7 +387,7 @@ def ask_tutor(
     answer = result if isinstance(result, str) else ""
     answer = _strip_think(answer).strip()
 
-    if image_bytes is None and answer and not student_model_summary:
+    if not has_vision and answer and not student_model_summary:
         set_cached_answer(question, MODEL, context_chunks, answer)
 
     return answer
@@ -409,7 +410,7 @@ def ask_tutor_stream(
     NOTE: For vision requests (image attached), we use non-streaming to avoid
     model compatibility issues where streaming silently returns nothing.
     """
-    has_vision = image_bytes is not None
+    has_vision = image_bytes is not None or bool(context_chunks)
     llm = get_client(require_vision=has_vision)
     messages = _build_messages(
         question, image_bytes=image_bytes, image_media_type=image_media_type,
@@ -421,7 +422,7 @@ def ask_tutor_stream(
     # Higher max_tokens for richer, more thorough streaming answers
     stream_max_tokens = 4096
 
-    # Vision: try streaming first (faster perceived response), fall back to non-streaming
+    # Vision/document: try streaming first (faster perceived response), fall back to non-streaming
     if has_vision:
         try:
             raw = llm.chat(system_prompt=system_prompt, messages=messages, max_tokens=3072, stream=True)

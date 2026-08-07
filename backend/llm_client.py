@@ -554,16 +554,27 @@ def _is_groq(base_url: str = None) -> bool:
     return "groq.com" in url.lower()
 
 
+def _get_vision_fallbacks(vision_base_url: str) -> list[str] | None:
+    """Return the right fallback model chain for the configured vision provider."""
+    env_fallback = os.environ.get("VISION_FALLBACK_MODELS") or os.environ.get("OPENROUTER_FALLBACK_MODELS")
+    if env_fallback:
+        return [m.strip() for m in env_fallback.split(",") if m.strip()]
+    if "openrouter.ai" in (vision_base_url or "").lower():
+        return OPENROUTER_FALLBACK_MODELS
+    env_primary_fallback = os.environ.get("OPENAI_FALLBACK_MODELS", "")
+    if env_primary_fallback:
+        return [m.strip() for m in env_primary_fallback.split(",") if m.strip()]
+    return None
+
+
 def get_client(require_vision: bool = False) -> LLMClient:
     """Return the appropriate LLM client based on environment configuration.
 
-    Supports a DUAL-PROVIDER setup for maximum speed + vision capability:
-      - OPENAI_*          : Primary provider for fast text chat (e.g. Groq)
-      - VISION_API_KEY    : Separate provider used ONLY for image requests
-      - VISION_BASE_URL   : Base URL for the vision provider (e.g. OpenRouter)
-      - VISION_MODEL      : Model name for vision requests
+    Supports a DUAL-PROVIDER setup for maximum speed + vision/document capability:
+      - OPENAI_* / GROQ : Primary provider for fast text chat
+      - VISION_API_KEY / OPENROUTER_* : Separate provider for image + document analysis
 
-    When `require_vision=True` and VISION_API_KEY is set, always routes to
+    When `require_vision=True` and a vision/OpenRouter key is set, always routes to
     the dedicated vision provider regardless of the primary provider.
 
     Providers:
@@ -575,23 +586,34 @@ def get_client(require_vision: bool = False) -> LLMClient:
     provider = os.environ.get("LLM_PROVIDER", "").strip().lower()
 
     if require_vision:
-        # --- Priority 1: Dedicated vision provider (VISION_API_KEY set) ---
-        vision_api_key = os.environ.get("VISION_API_KEY", "")
-        vision_base_url = os.environ.get("VISION_BASE_URL", "")
-        vision_model = os.environ.get("VISION_MODEL", "google/gemma-4-26b-a4b-it:free")
+        # --- Priority 1: Dedicated vision provider (VISION_* or OPENROUTER_* aliases) ---
+        vision_api_key = os.environ.get("VISION_API_KEY") or os.environ.get("OPENROUTER_API_KEY")
+        vision_base_url = os.environ.get("VISION_BASE_URL") or os.environ.get("OPENROUTER_BASE_URL")
+        vision_model = (
+            os.environ.get("VISION_MODEL")
+            or os.environ.get("OPENROUTER_MODEL")
+            or "google/gemma-4-26b-a4b-it:free"
+        )
         if vision_api_key and vision_base_url:
-            print(f"[LLM] Image detected -> vision provider: {vision_base_url} model: {vision_model}")
-            return OpenAIClient(model=vision_model, api_key=vision_api_key, base_url=vision_base_url)
+            print(f"[LLM] Image/document request -> vision provider: {vision_base_url} model: {vision_model}")
+            fallback_models = _get_vision_fallbacks(vision_base_url)
+            return OpenAIClient(
+                model=vision_model,
+                api_key=vision_api_key,
+                base_url=vision_base_url,
+                fallback_models=fallback_models,
+            )
 
         # --- Priority 2: Primary provider if it's NOT Groq ---
         is_groq_primary = (provider == "openai" and _is_groq())
         if provider == "openai" and not is_groq_primary:
             vision_model = os.environ.get("OPENAI_VISION_MODEL", "google/gemma-4-26b-a4b-it:free")
-            print(f"[LLM] Image detected -> using vision model: {vision_model}")
+            print(f"[LLM] Image/document request -> using vision model: {vision_model}")
             return OpenAIClient(
                 model=vision_model,
                 api_key=os.environ.get("OPENAI_API_KEY"),
                 base_url=os.environ.get("OPENAI_BASE_URL"),
+                fallback_models=_get_vision_fallbacks(os.environ.get("OPENAI_BASE_URL", "")),
             )
 
         # --- Priority 3: Gemini (native vision support) ---
