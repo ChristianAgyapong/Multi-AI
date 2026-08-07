@@ -26,10 +26,10 @@ Schema: {"topic":"string","questions":[{"question":"string","options":["A","B","
 
 Rules:
 - Each question must cover a DIFFERENT angle, scenario, or sub-topic. Do NOT repeat the same question or concept with slightly different wording.
-- For each question, write 2-4 clear sentences that teach the concept behind the correct answer.
-- Explain WHY the correct answer is right and WHY the most tempting wrong option is wrong.
-- Use simple language, a short real-world example when helpful, and avoid repeating the question text.
-- Do not just restate the correct option; explain the idea so the student learns it.
+- For each question, write a SHORT explanation of 1-2 sentences that teaches the core concept simply.
+- Make the explanation BRIEF and CLEAR: state the key idea in plain words, and only call out the most tempting wrong option if it adds insight.
+- Do NOT repeat or restate the question text or the correct option. Teach the underlying idea so the student actually learns it.
+- Use simple language, a short real-world example when helpful.
 - Options: max 10 words each. Keep questions concise but not shallow."""
 
 # Per-batch prompt for parallel generation
@@ -39,7 +39,8 @@ Requirements:
 - Return ONLY valid JSON with a "questions" array.
 - Each item must have: question, options (4), correct_index, explanation.
 - Every question must be DISTINCT. Do NOT repeat the same question or concept across the batch; vary the scenario, wording, and tested angle.
-- The explanation must be 2-4 clear sentences that teach the concept, explain why the correct answer is right, and point out why the most tempting wrong answer is wrong. Do not just repeat the question or the correct option.
+- The explanation must be SHORT (1-2 sentences) and teach the core concept in plain, simple words. Do NOT repeat or restate the question text or the correct option.
+- Only mention a tempting wrong option if it adds real insight; keep it brief.
 - Use simple language and a short real-world example when helpful.
 - Options should be short (max 10 words)."""
 

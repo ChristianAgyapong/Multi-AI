@@ -1,5 +1,5 @@
 {
-  "interaction_count": 193,
+  "interaction_count": 228,
   "flashcards": [
     {
       "front": "Photosynthesis",
@@ -52,19 +52,19 @@
   ],
   "topic_stats": {
     "explain": {
-      "questions_asked": 7,
+      "questions_asked": 9,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
     },
     "photosynthesis": {
-      "questions_asked": 6,
+      "questions_asked": 8,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
     },
     "general": {
-      "questions_asked": 126,
+      "questions_asked": 142,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -76,7 +76,7 @@
       "quiz_total": 0
     },
     "what": {
-      "questions_asked": 13,
+      "questions_asked": 15,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -160,7 +160,7 @@
       "quiz_total": 0
     },
     "teach": {
-      "questions_asked": 5,
+      "questions_asked": 9,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -322,7 +322,7 @@
       "quiz_total": 0
     },
     "solve": {
-      "questions_asked": 2,
+      "questions_asked": 10,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -418,6 +418,30 @@
       "quiz_total": 0
     },
     "next": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "cloud": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "which": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "ashanti": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "nice": {
       "questions_asked": 1,
       "quiz_attempts": 0,
       "quiz_correct": 0,
