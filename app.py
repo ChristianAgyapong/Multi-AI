@@ -94,6 +94,9 @@ if "student_model" not in st.session_state:
     st.session_state.student_model = StudentModel()
 if "agent_mode" not in st.session_state:
     st.session_state.agent_mode = DEFAULT_AGENT_MODE
+if "seen_quiz_questions" not in st.session_state:
+    # Maps f"{topic_lower}_{difficulty}" -> list of question texts already shown
+    st.session_state.seen_quiz_questions = {}
 
 
 def _extract_text(file) -> str:
@@ -512,32 +515,31 @@ body{{margin:0;padding:2px 0;background:transparent;font-family:system-ui,sans-s
         st.session_state.last_retrieved_chunks = context_chunks
 
         with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                try:
-                    api_history = [
-                        {"role": t["role"], "content": t.get("api_content", t["content_display"])}
-                        for t in st.session_state.chat_history[:-1]
-                        if t["role"] in ("user", "assistant")
-                    ]
-                    student_model = st.session_state.student_model
-                    detected_topics = student_model.record_question(question)
-                    student_summary = student_model.get_summary()
+            try:
+                api_history = [
+                    {"role": t["role"], "content": t.get("api_content", t["content_display"])}
+                    for t in st.session_state.chat_history[:-1]
+                    if t["role"] in ("user", "assistant")
+                ]
+                student_model = st.session_state.student_model
+                detected_topics = student_model.record_question(question)
+                student_summary = student_model.get_summary()
 
-                    answer = st.write_stream(
-                        ask_tutor_stream(
-                            question,
-                            image_bytes=image_bytes,
-                            image_media_type=media_type,
-                            context_chunks=context_chunks,
-                            history=api_history,
-                            agent_mode=st.session_state.agent_mode,
-                            student_model_summary=student_summary,
-                        )
+                answer = st.write_stream(
+                    ask_tutor_stream(
+                        question,
+                        image_bytes=image_bytes,
+                        image_media_type=media_type,
+                        context_chunks=context_chunks,
+                        history=api_history,
+                        agent_mode=st.session_state.agent_mode,
+                        student_model_summary=student_summary,
                     )
-                    st.session_state.total_api_calls += 1
-                except Exception as e:
-                    answer = user_friendly_error(e)
-                    st.markdown(answer)
+                )
+                st.session_state.total_api_calls += 1
+            except Exception as e:
+                answer = user_friendly_error(e)
+                st.markdown(answer)
 
         st.session_state.chat_history.append(
             {"role": "assistant", "content_display": answer}
@@ -572,11 +574,36 @@ with tab_quiz:
         )
 
     if difficulty == "hard":
-        difficulty_hint = "This will be challenging (good for review)"
-        st.info(difficulty_hint)
+        st.warning(
+            "⚡ **Hard mode** — Questions go beyond facts. Expect cause-and-effect scenarios, "
+            "misconception traps, and critical reasoning. Memorising definitions won't be enough."
+        )
     elif difficulty == "easy":
-        difficulty_hint = "Foundational level (let's build up your understanding)"
-        st.info(difficulty_hint)
+        st.info(
+            "🌱 **Easy mode** — Tests recognition and recall of key definitions and core facts. "
+            "Great for a first pass through a new topic."
+        )
+    else:
+        st.info(
+            "📘 **Standard mode** — Questions test conceptual understanding and application, not just recall. "
+            "You'll need to understand the 'how' and 'why', not just the 'what'."
+        )
+
+    # Seen-question indicator — show how many questions this student has already seen
+    # on the current topic+difficulty, and offer a fresh-start reset.
+    quiz_key = f"{quiz_topic.strip().lower()}_{difficulty}" if quiz_topic.strip() else None
+    seen_for_topic: list[str] = list(st.session_state.seen_quiz_questions.get(quiz_key or "", []))
+    if quiz_key and seen_for_topic:
+        seen_col, reset_col = st.columns([5, 1])
+        with seen_col:
+            st.caption(
+                f"🔄 **{len(seen_for_topic)} question(s)** already asked on this topic+difficulty. "
+                "New quiz will automatically avoid repeating them."
+            )
+        with reset_col:
+            if st.button("Reset", help="Clear history for this topic — allow repeats again", type="secondary"):
+                st.session_state.seen_quiz_questions.pop(quiz_key, None)
+                st.rerun()
 
     if st.button("Generate quiz", type="primary"):
         if not quiz_topic.strip():
@@ -588,14 +615,25 @@ with tab_quiz:
                     if not st.session_state.material_store.is_empty():
                         context_chunks = st.session_state.material_store.retrieve(quiz_topic)
 
+                    _quiz_key = f"{quiz_topic.strip().lower()}_{difficulty}"
+                    _seen = list(st.session_state.seen_quiz_questions.get(_quiz_key, []))
+
                     quiz = generate_quiz(
                         topic=quiz_topic,
                         num_questions=num_questions,
                         context_chunks=context_chunks,
                         difficulty=difficulty,
+                        seen_questions=_seen if _seen else None,
                     )
+
+                    # Record every new question so future quizzes avoid them
+                    new_q_texts = [q.get("question", "").strip() for q in quiz.get("questions", [])]
+                    updated_seen = list(dict.fromkeys(_seen + new_q_texts))  # dedup, preserve order
+                    st.session_state.seen_quiz_questions[_quiz_key] = updated_seen
+
                     st.session_state["current_quiz"] = quiz
                     st.session_state["current_quiz_topic"] = quiz_topic
+                    st.session_state["current_quiz_key"] = _quiz_key
                     st.session_state["quiz_checked"] = False
                     st.session_state["quiz_submitted"] = False
                 except Exception as e:

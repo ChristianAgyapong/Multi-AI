@@ -1,22 +1,19 @@
-# Task: Optimize file upload / RAG indexing speed
+# Task: Teach the AI smart, judgment-based formatting (spacing, outline bulleting, standout indicators)
 
-## Problem
-- Uploading a document shows "Uploading…" for a long time.
-- Root cause: `MaterialStore.add_document()` makes a **synchronous Gemini
-  embedding API call** per upload, and the blocking work runs on the FastAPI
-  event loop.
-- Secondary: TF-IDF fallback re-fits vocabulary over ALL chunks on every
-  upload (quadratic growth); no embedding cache (re-uploads hit the API again).
+## Goal
+Without forcing a single rigid rule on every chat, let the AI decide *when* spacing,
+outline bulleting, and standout indicators genuinely make an explanation clearer and
+more scannable — instead of producing thorough but flat walls of text.
 
 ## Steps
-- [x] 1. Add persistent SQLite embedding cache in `backend/rag.py` (chunk hash → vector)
-- [x] 2. Replace TF-IDF full re-fit with `HashingVectorizer` (O(new chunks), no fit)
-- [x] 3. Embed large documents in parallel batches (ThreadPoolExecutor) + retry on 429
-- [x] 4. Offload extraction + indexing to a worker thread in `backend/api.py` (`asyncio.to_thread`)
-- [x] 5. Delete temp `_benchmark_upload.py`, re-run benchmark, verify speedup
+- [x] 1. Explore codebase: `tutor_engine.py`, `Chat.tsx`, `quiz.py`, `globals.css`, sample notes
+- [x] 2. Add a "SMART FORMATTING" section to the tutor-agent prompt (judgment-based, with a before/after photosynthesis example)
+- [x] 3. Add a global "SMART FORMATTING PRINCIPLE" to `get_system_prompt()` and extend the quality checklist (rule 9)
+- [x] 4. Leave specialized mode instructions (socratic/quiz/debugger) intact; they inherit the global rule
+- [x] 5. Verify the module still imports / prompt builds cleanly
 
-## Results
-- First upload of a new file: ~10.6s (Gemini embedding API latency — unavoidable)
-- Re-upload of the same file: **0.37s** (SQLite embedding cache hit) — ~97% faster
-- The API event loop is no longer blocked during uploads (extraction + indexing run in a worker thread)
+## Result
+- Tutor mode now formats for readability by judgment, not by rote.
+- Global formatting principle + checklist items apply to every mode automatically.
+- No frontend change required — Markdown headings/lists/tables/callouts are already rendered.
 

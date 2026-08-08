@@ -31,6 +31,20 @@ import requests
 # more natural and creative, while structured outputs (quiz JSON) pass ~0.2.
 DEFAULT_TEMPERATURE = float(os.environ.get("LLM_TEMPERATURE", "0.7"))
 
+# ---------------------------------------------------------------------------
+# Module-level client singleton cache
+# Re-using the same client object avoids re-creating HTTP sessions on every
+# chat message. The cache is keyed by (provider, model, require_vision) so a
+# switch in .env settings still picks up a fresh client.
+# ---------------------------------------------------------------------------
+_CLIENT_CACHE: dict[tuple, "LLMClient"] = {}
+
+# Ollama availability is cached for 30 s to avoid an HTTP round-trip on every
+# auto-detect call.
+_OLLAMA_AVAILABLE: bool | None = None
+_OLLAMA_CHECKED_AT: float = 0.0
+_OLLAMA_CACHE_TTL: float = 30.0  # seconds
+
 # Smarter fallback chain for OpenRouter. Free model availability changes, so
 # the first entry is the OpenRouter "free" router which auto-picks an available
 # free model. The rest are known-valid free variants as a safety net.
@@ -78,6 +92,8 @@ class OllamaClient(LLMClient):
     def __init__(self, model: str = None, base_url: str = None):
         self.model = model or os.environ.get("OLLAMA_MODEL", OLLAMA_DEFAULT_MODEL)
         self.base_url = (base_url or os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")).rstrip("/")
+        # Persistent session — reuses TCP connections (keep-alive) across calls
+        self._session = requests.Session()
 
     @property
     def name(self) -> str:
@@ -130,13 +146,13 @@ class OllamaClient(LLMClient):
             return self._non_stream_response(payload)
 
     def _non_stream_response(self, payload: dict) -> str:
-        resp = requests.post(f"{self.base_url}/api/chat", json=payload, timeout=120)
+        resp = self._session.post(f"{self.base_url}/api/chat", json=payload, timeout=120)
         resp.raise_for_status()
         data = resp.json()
         return data.get("message", {}).get("content", "")
 
     def _stream_response(self, payload: dict) -> Generator[str, None, None]:
-        with requests.post(f"{self.base_url}/api/chat", json=payload, stream=True, timeout=120) as resp:
+        with self._session.post(f"{self.base_url}/api/chat", json=payload, stream=True, timeout=120) as resp:
             resp.raise_for_status()
             for line in resp.iter_lines():
                 if line:
@@ -152,12 +168,21 @@ class OllamaClient(LLMClient):
 
     @staticmethod
     def check_available() -> bool:
-        """Return True if Ollama server is reachable."""
+        """Return True if Ollama server is reachable. Result is cached for 30s."""
+        global _OLLAMA_AVAILABLE, _OLLAMA_CHECKED_AT
+        now = time.monotonic()
+        if _OLLAMA_AVAILABLE is not None and (now - _OLLAMA_CHECKED_AT) < _OLLAMA_CACHE_TTL:
+            return _OLLAMA_AVAILABLE
         try:
-            resp = requests.get(f"{os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434')}/api/tags", timeout=3)
-            return resp.status_code == 200
+            resp = requests.get(
+                f"{os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434')}/api/tags",
+                timeout=3,
+            )
+            _OLLAMA_AVAILABLE = resp.status_code == 200
         except Exception:
-            return False
+            _OLLAMA_AVAILABLE = False
+        _OLLAMA_CHECKED_AT = now
+        return _OLLAMA_AVAILABLE
 
 
 # ---------------------------------------------------------------------------
@@ -171,6 +196,8 @@ class GeminiClient(LLMClient):
     def __init__(self, model: str = None, api_key: str = None):
         self.model = model or os.environ.get("GEMINI_MODEL", GEMINI_DEFAULT_MODEL)
         self.api_key = api_key or os.environ.get("GEMINI_API_KEY", "")
+        # Persistent session — reuses TCP connections across calls
+        self._session = requests.Session()
 
     @property
     def name(self) -> str:
@@ -244,7 +271,7 @@ class GeminiClient(LLMClient):
         return "user" if role == "user" else "model"
 
     def _non_stream_response(self, url: str, payload: dict) -> str:
-        resp = requests.post(url, json=payload, timeout=60)
+        resp = self._session.post(url, json=payload, timeout=60)
         resp.raise_for_status()
         data = resp.json()
         candidates = data.get("candidates", [])
@@ -254,7 +281,7 @@ class GeminiClient(LLMClient):
         return ""
 
     def _stream_response(self, url: str, payload: dict) -> Generator[str, None, None]:
-        with requests.post(url, json=payload, stream=True, timeout=60) as resp:
+        with self._session.post(url, json=payload, stream=True, timeout=60) as resp:
             resp.raise_for_status()
             buffer = ""
             for chunk in resp.iter_content(chunk_size=None):
@@ -309,6 +336,9 @@ class OpenAIClient(LLMClient):
             env_fallback = os.environ.get("OPENAI_FALLBACK_MODELS", "")
             fallback_models = [m.strip() for m in env_fallback.split(",") if m.strip()]
         self.fallback_models = list(fallback_models or [])
+        # Persistent session — reuses TCP connections (keep-alive) across calls
+        self._session = requests.Session()
+        self._session.headers.update({"Content-Type": "application/json"})
 
     @property
     def name(self) -> str:
@@ -494,7 +524,7 @@ class OpenAIClient(LLMClient):
         return None
 
     def _non_stream_response(self, headers: dict, payload: dict) -> str:
-        resp = requests.post(f"{self.base_url}/chat/completions", json=payload, headers=headers, timeout=180)
+        resp = self._session.post(f"{self.base_url}/chat/completions", json=payload, headers=headers, timeout=180)
         if resp.status_code == 400:
             try:
                 err_body = resp.json().get("error", {}).get("message", "")
@@ -505,7 +535,7 @@ class OpenAIClient(LLMClient):
                 self.model = replacement
                 payload["model"] = replacement
                 print(f"  Retrying with model: {replacement}")
-                resp = requests.post(f"{self.base_url}/chat/completions", json=payload, headers=headers, timeout=180)
+                resp = self._session.post(f"{self.base_url}/chat/completions", json=payload, headers=headers, timeout=180)
         resp.raise_for_status()
         data = resp.json()
         choices = data.get("choices", [])
@@ -514,7 +544,7 @@ class OpenAIClient(LLMClient):
         return ""
 
     def _stream_response(self, headers: dict, payload: dict) -> Generator[str, None, None]:
-        resp = requests.post(f"{self.base_url}/chat/completions", json=payload, headers=headers, stream=True, timeout=300)
+        resp = self._session.post(f"{self.base_url}/chat/completions", json=payload, headers=headers, stream=True, timeout=300)
         if resp.status_code == 400:
             try:
                 err_body = resp.json().get("error", {}).get("message", "")
@@ -525,7 +555,7 @@ class OpenAIClient(LLMClient):
                 self.model = replacement
                 payload["model"] = replacement
                 print(f"  Retrying stream with model: {replacement}")
-                resp = requests.post(f"{self.base_url}/chat/completions", json=payload, headers=headers, stream=True, timeout=300)
+                resp = self._session.post(f"{self.base_url}/chat/completions", json=payload, headers=headers, stream=True, timeout=300)
         resp.raise_for_status()
         for line in resp.iter_lines():
             if line:
@@ -582,9 +612,31 @@ def get_client(require_vision: bool = False) -> LLMClient:
       - "gemini"    : Google Gemini API (free tier)
       - "openai"    : OpenAI-compatible (Groq, OpenRouter, Together, etc.)
       - "anthropic" : Anthropic Claude (fallback)
+
+    Client instances are cached by configuration key so the same object (and its
+    underlying TCP session) is reused across every chat message in the session.
     """
     provider = os.environ.get("LLM_PROVIDER", "").strip().lower()
+    # Build a cache key from the active configuration snapshot
+    _cache_key = (
+        provider,
+        require_vision,
+        os.environ.get("OLLAMA_MODEL", ""),
+        os.environ.get("GEMINI_MODEL", ""),
+        os.environ.get("OPENAI_MODEL", ""),
+        os.environ.get("OPENAI_BASE_URL", ""),
+        os.environ.get("VISION_BASE_URL", "") or os.environ.get("OPENROUTER_BASE_URL", ""),
+    )
+    if _cache_key in _CLIENT_CACHE:
+        return _CLIENT_CACHE[_cache_key]
 
+    client = _build_client(provider, require_vision)
+    _CLIENT_CACHE[_cache_key] = client
+    return client
+
+
+def _build_client(provider: str, require_vision: bool) -> LLMClient:
+    """Internal: construct a fresh client. Called only when the cache misses."""
     if require_vision:
         # --- Priority 1: Dedicated vision provider (VISION_* or OPENROUTER_* aliases) ---
         vision_api_key = os.environ.get("VISION_API_KEY") or os.environ.get("OPENROUTER_API_KEY")

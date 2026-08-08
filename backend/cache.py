@@ -54,7 +54,7 @@ def _make_key(question: str, model: str, context_chunks: list[dict] | None) -> s
 def get_cached_answer(
     question: str, model: str, context_chunks: list[dict] | None
 ) -> str | None:
-    """Return cached answer if it exists, else None. Increments hit_count."""
+    """Return cached answer if it exists, else None. Increments hit_count async."""
     key = _make_key(question, model, context_chunks)
     conn = _get_conn()
     row = conn.execute(
@@ -63,11 +63,15 @@ def get_cached_answer(
     if row is None:
         return None
     answer, hits = row
-    conn.execute(
-        "UPDATE qa_cache SET hit_count = ? WHERE cache_key = ?",
-        (hits + 1, key),
-    )
-    conn.commit()
+    # Fire-and-forget hit_count increment — doesn't block the read path
+    def _inc():
+        try:
+            c = _get_conn()
+            c.execute("UPDATE qa_cache SET hit_count = ? WHERE cache_key = ?", (hits + 1, key))
+            c.commit()
+        except Exception:
+            pass
+    threading.Thread(target=_inc, daemon=True).start()
     return answer
 
 
@@ -148,11 +152,15 @@ def get_cached_quiz(topic: str, num_questions: int, difficulty: str, context_chu
     if row is None:
         return None
     answer, hits = row
-    conn.execute(
-        "UPDATE qa_cache SET hit_count = ? WHERE cache_key = ?",
-        (hits + 1, key),
-    )
-    conn.commit()
+    # Fire-and-forget hit_count increment
+    def _inc():
+        try:
+            c = _get_conn()
+            c.execute("UPDATE qa_cache SET hit_count = ? WHERE cache_key = ?", (hits + 1, key))
+            c.commit()
+        except Exception:
+            pass
+    threading.Thread(target=_inc, daemon=True).start()
     try:
         return json.loads(answer)
     except json.JSONDecodeError:

@@ -1,5 +1,5 @@
 {
-  "interaction_count": 228,
+  "interaction_count": 237,
   "flashcards": [
     {
       "front": "Photosynthesis",
@@ -52,19 +52,19 @@
   ],
   "topic_stats": {
     "explain": {
-      "questions_asked": 9,
+      "questions_asked": 15,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
     },
     "photosynthesis": {
-      "questions_asked": 8,
+      "questions_asked": 14,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
     },
     "general": {
-      "questions_asked": 142,
+      "questions_asked": 143,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -160,7 +160,7 @@
       "quiz_total": 0
     },
     "teach": {
-      "questions_asked": 9,
+      "questions_asked": 10,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -202,7 +202,7 @@
       "quiz_total": 0
     },
     "every": {
-      "questions_asked": 1,
+      "questions_asked": 2,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -304,7 +304,7 @@
       "quiz_total": 0
     },
     "thank": {
-      "questions_asked": 1,
+      "questions_asked": 2,
       "quiz_attempts": 0,
       "quiz_correct": 0,
       "quiz_total": 0
@@ -442,6 +442,114 @@
       "quiz_total": 0
     },
     "nice": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "amen": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "august": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "beloved": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "christ": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "date": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "envelopes": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "father": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "holy spirit": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "honour": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "lord": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "masses": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "please": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "proverbs": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "target": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "together": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "verb": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "youth harvest": {
+      "questions_asked": 1,
+      "quiz_attempts": 0,
+      "quiz_correct": 0,
+      "quiz_total": 0
+    },
+    "youth harvest launch speech\nrev": {
       "questions_asked": 1,
       "quiz_attempts": 0,
       "quiz_correct": 0,
