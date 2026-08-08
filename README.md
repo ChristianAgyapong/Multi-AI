@@ -5,6 +5,9 @@ questions in text, upload a photo of handwritten work or a diagram, upload
 course material (PDF/TXT/DOCX) for grounded answers (RAG), and get an
 auto-generated quiz on any topic.
 
+
+
+
 Built to match the "Start Small → Scale" path, and now upgraded with advanced features:
 - **Unified LLM Support**: Use Ollama (free/local), Gemini (free tier), OpenAI, or Anthropic.
 - **Frontend**: Streamlit for a fast interactive multimodal UI.
