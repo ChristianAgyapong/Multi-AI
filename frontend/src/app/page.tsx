@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Chat from "@/components/Chat";
 import Quiz from "@/components/Quiz";
 import Flashcards from "@/components/Flashcards";
@@ -53,12 +53,17 @@ const tabs: {
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("chat");
-  // Default sidebar closed on mobile (< 768px), open on desktop
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(
-    typeof window !== "undefined" ? window.innerWidth >= 768 : true
-  );
+  // Start sidebar closed always — useEffect opens it on desktop after mount
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [chatMode, setChatMode] = useState<string>("direct");
   const [sessionKey, setSessionKey] = useState<number>(0);
+
+  // After mount: open sidebar on desktop, keep closed on mobile
+  useEffect(() => {
+    if (window.innerWidth >= 768) {
+      setIsSidebarOpen(true);
+    }
+  }, []);
 
   const handleStartSession = () => {
     // Clear frontend local storage for chat
@@ -104,9 +109,9 @@ export default function Home() {
         )}
 
         {/* Main column */}
-        <div className="flex-1 min-w-0 z-10 flex flex-col">
-          {/* Header */}
-          <header className="bg-transparent border-b border-white/5 px-4 py-2 md:px-6 md:py-2 flex items-center justify-between flex-wrap gap-2">
+        <div className="flex-1 min-w-0 z-10 flex flex-col overflow-hidden">
+          {/* Header — sticky, never scrolls away */}
+          <header className="flex-shrink-0 bg-[rgba(3,7,18,0.85)] backdrop-blur-xl border-b border-white/5 px-3 py-2 md:px-6 md:py-2.5 flex items-center justify-between gap-2" style={{ position: 'sticky', top: 0, zIndex: 30 }}>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}

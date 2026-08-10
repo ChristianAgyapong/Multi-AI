@@ -46,6 +46,7 @@
 html,
 body {
   height: 100%;
+  overflow: hidden; /* Prevent page scroll — app is a fixed-height shell */
 }
 
 body {
@@ -103,6 +104,9 @@ body {
 
 .app-main {
   position: relative;
+  height: 100dvh; /* dvh = dynamic viewport height, accounts for mobile browser chrome */
+  height: 100vh;  /* fallback for browsers without dvh support */
+  overflow: hidden;
 }
 
 .chat-shell {
