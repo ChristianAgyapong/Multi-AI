@@ -479,11 +479,17 @@ body: JSON.stringify({
                       )}
 
                       {m.image && (
-                        <img
-                          src={m.image}
-                          alt="Uploaded problem"
-                          className="max-w-sm w-full object-contain rounded-xl mb-4 border border-white/10 shadow-lg"
-                        />
+                        <div className="mb-3">
+                          <a href={m.image} target="_blank" rel="noopener noreferrer" title="Tap to view full image">
+                            <img
+                              src={m.image}
+                              alt="Uploaded image"
+                              className="block rounded-xl border border-white/20 shadow-lg object-cover transition-transform active:scale-95 hover:brightness-110"
+                              style={{ maxWidth: '160px', maxHeight: '160px', width: 'auto', height: 'auto' }}
+                            />
+                          </a>
+                          <p className="text-[0.6rem] text-indigo-300/60 mt-1 pl-0.5">Tap to view full image</p>
+                        </div>
                       )}
 
                       <div className={`edu-prose max-w-none break-words ${
