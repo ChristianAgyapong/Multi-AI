@@ -208,13 +208,15 @@ export default function Quiz() {
         </div>
 
         {questions.length === 0 && !loading && (
-          <div className="quiz-suggestions flex flex-wrap gap-2 mt-3">
-            {TOPIC_SUGGESTIONS.map((s) => (
-              <button key={s} onClick={() => setTopic(s)} className="suggestion-chip text-[0.75rem] py-1.5">
-                <Sparkles className="w-3 h-3" />
-                {s}
-              </button>
-            ))}
+          <div className="w-full mt-3">
+            <div className="flex md:flex-wrap justify-start gap-2 overflow-x-auto pb-1 px-1 md:px-0 no-scrollbar">
+              {TOPIC_SUGGESTIONS.map((s) => (
+                <button key={s} onClick={() => setTopic(s)} className="suggestion-chip shrink-0 text-[0.75rem] py-1.5">
+                  <Sparkles className="w-3 h-3 shrink-0" />
+                  <span className="whitespace-nowrap">{s}</span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 

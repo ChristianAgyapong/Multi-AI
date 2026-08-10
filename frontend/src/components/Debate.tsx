@@ -21,12 +21,7 @@ const TOPIC_SUGGESTIONS = [
   "Binary Search Trees",
 ];
 
-const STEPS = [
-  { icon: Bot, title: "Pick a topic", desc: "Enter any concept you want to master." },
-  { icon: GraduationCap, title: "Fellow Student explains it", desc: "An AI peer gives an explanation that deliberately contains mistakes." },
-  { icon: Users, title: "You correct the mistakes", desc: "Read carefully, then message back what is wrong and what the correct version should be." },
-  { icon: Sparkles, title: "Tutor grades your understanding", desc: "A Tutor AI checks your corrections and tells you what you got right or missed." },
-];
+
 
 export default function Debate() {
   const [topic, setTopic] = useState("");
@@ -198,24 +193,7 @@ export default function Debate() {
               </p>
             </div>
 
-            {/* How it works */}
-            <div className="space-y-2 text-left">
-              <p className="text-[0.7rem] uppercase tracking-wider text-pink-300/80 font-semibold mb-1.5 text-center">How it works</p>
-              {STEPS.map(({ icon: Icon, title, desc }, i) => (
-                <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-slate-800/40 border border-[var(--border-color)]">
-                  <div className="w-7 h-7 rounded-full bg-pink-500/15 border border-pink-500/30 flex items-center justify-center shrink-0 mt-0.5">
-                    <span className="text-xs font-bold text-pink-400">{i + 1}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <Icon size={14} className="text-pink-300 shrink-0" />
-                      <span className="text-xs font-semibold text-[var(--text-main)]">{title}</span>
-                    </div>
-                    <p className="text-[0.75rem] text-[var(--text-muted)] leading-snug">{desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {/* Removed verbose steps to simplify the interface */}
 
             <div className="space-y-3">
               <input
@@ -227,13 +205,15 @@ export default function Debate() {
                 className="input-field text-center"
               />
 
-              <div className="flex flex-wrap justify-center gap-2">
-                {TOPIC_SUGGESTIONS.map((s) => (
-                  <button key={s} onClick={() => setTopic(s)} className="suggestion-chip text-[0.75rem] py-1.5">
-                    <Sparkles className="w-3 h-3" />
-                    {s}
-                  </button>
-                ))}
+              <div className="w-full">
+                <div className="flex md:flex-wrap justify-start md:justify-center gap-2 overflow-x-auto pb-1 px-1 md:px-0 no-scrollbar">
+                  {TOPIC_SUGGESTIONS.map((s) => (
+                    <button key={s} onClick={() => setTopic(s)} className="suggestion-chip shrink-0 text-[0.75rem] py-1.5">
+                      <Sparkles className="w-3 h-3 shrink-0" />
+                      <span className="whitespace-nowrap">{s}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <button
@@ -279,8 +259,8 @@ export default function Debate() {
                     {Icon && <Icon className="w-3.5 h-3.5" />}
                     <span className="text-xs font-semibold">{style.label}</span>
                   </div>
-                  <div className={`max-w-[88%] rounded-2xl p-4 border ${style.bg}`}>
-                    <div className="prose prose-invert max-w-none text-sm leading-relaxed">
+                  <div className={`max-w-[88%] md:max-w-[80%] rounded-2xl p-4 md:p-5 border ${style.bg}`}>
+                    <div className="edu-prose max-w-none break-words">
                       <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
                         {m.content}
                       </ReactMarkdown>

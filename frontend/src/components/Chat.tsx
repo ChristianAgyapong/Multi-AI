@@ -381,34 +381,36 @@ body: JSON.stringify({
       <div className="chat-stage flex-1 overflow-y-auto px-3 pt-0 pb-2 md:px-8 bg-transparent">
         <div className="chat-stage-inner max-w-3xl lg:max-w-4xl mx-auto flex flex-col space-y-4">
           {messages.length === 0 ? (
-            <div className="chat-empty flex flex-col items-center justify-center min-h-[62vh] text-center text-gray-400 gap-5 animate-fade-in-up px-2">
-              <div className="relative p-6 rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-600/10 border border-indigo-500/30 shadow-[0_0_80px_rgba(99,102,241,0.18)]">
-                <Bot className="w-14 h-14 text-indigo-300" />
+            <div className="chat-empty flex flex-col items-center justify-center min-h-[55vh] text-center text-gray-400 gap-3 md:gap-5 animate-fade-in-up px-2">
+              <div className="relative p-4 md:p-6 rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-600/10 border border-indigo-500/30 shadow-[0_0_60px_rgba(99,102,241,0.18)]">
+                <Bot className="w-10 h-10 md:w-14 md:h-14 text-indigo-300" />
                 <span className="absolute inset-0 rounded-full animate-ping bg-indigo-500/10" />
               </div>
-              <h3 className="gradient-text text-3xl font-semibold text-white">How can I help you learn today?</h3>
+              <h3 className="gradient-text text-xl md:text-3xl font-semibold text-white leading-tight px-2">How can I help you learn today?</h3>
 
-              {/* Quick-start suggestions */}
-              <div className="chat-empty-suggestions flex flex-wrap justify-center gap-2 max-w-2xl">
-                {SUGGESTIONS.map((s) => (
-                  <button key={s} onClick={() => handleSend(s)} className="suggestion-chip">
-                    <Sparkles className="w-3 h-3 shrink-0" />
-                    <span>{s}</span>
-                  </button>
-                ))}
+              {/* Quick-start suggestions — horizontal scroll on mobile */}
+              <div className="w-full max-w-2xl">
+                <div className="flex md:flex-wrap justify-start md:justify-center gap-2 overflow-x-auto pb-1 px-1 md:px-0 no-scrollbar">
+                  {SUGGESTIONS.map((s) => (
+                    <button key={s} onClick={() => handleSend(s)} className="suggestion-chip shrink-0">
+                      <Sparkles className="w-3 h-3 shrink-0" />
+                      <span className="whitespace-nowrap">{s}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {/* Feature highlights */}
-              <div className="chat-feature-grid grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 max-w-lg w-full">
+              {/* Feature highlights — always 3 columns, compact on mobile */}
+              <div className="chat-feature-grid grid grid-cols-3 gap-2 md:gap-3 w-full max-w-lg">
                 {[
-                  { icon: ImageIcon, label: "Paste screenshots", sub: "Ctrl+V any image" },
-                  { icon: Calculator, label: "Live math", sub: "LaTeX rendering" },
-                  { icon: Target, label: "3 tutor modes", sub: "Socratic · Direct · Exam" },
+                  { icon: ImageIcon, label: "Screenshots", sub: "Paste images" },
+                  { icon: Calculator, label: "Live math", sub: "LaTeX" },
+                  { icon: Target, label: "3 modes", sub: "Socratic · Direct" },
                 ].map(({ icon: Icon, label, sub }) => (
-                  <div key={label} className="chat-feature-card group flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all hover:-translate-y-1 hover:border-indigo-500/30 hover:shadow-[0_8px_24px_rgba(99,102,241,0.15)]">
-                    <Icon className="w-5 h-5 text-indigo-400 group-hover:text-indigo-300 transition-colors" />
-                    <span className="text-xs font-medium text-[var(--text-main)]">{label}</span>
-                    <span className="text-[0.65rem] text-[var(--text-dim)]">{sub}</span>
+                  <div key={label} className="chat-feature-card group flex flex-col items-center gap-1 p-2.5 md:p-3 rounded-xl transition-all hover:-translate-y-1 hover:border-indigo-500/30 hover:shadow-[0_8px_24px_rgba(99,102,241,0.15)]">
+                    <Icon className="w-4 h-4 md:w-5 md:h-5 text-indigo-400 group-hover:text-indigo-300 transition-colors" />
+                    <span className="text-[0.72rem] md:text-xs font-medium text-[var(--text-main)] leading-tight">{label}</span>
+                    <span className="text-[0.6rem] md:text-[0.65rem] text-[var(--text-dim)] leading-tight">{sub}</span>
                   </div>
                 ))}
               </div>
@@ -421,20 +423,20 @@ body: JSON.stringify({
               return (
                 <div
                   key={idx}
-                  className={`group flex gap-3 animate-fade-in-up w-full ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+                  className={`group flex gap-2.5 animate-fade-in-up w-full ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}
                   style={{ animationDelay: `${Math.min(idx * 0.05, 0.3)}s` }}
                 >
                   {/* Avatar */}
-                  <div className="flex-shrink-0 mt-1">
-                    <div className={`chat-avatar w-8 h-8 rounded-full flex items-center justify-center shadow-md ${
+                  <div className="flex-shrink-0 mt-0.5">
+                    <div className={`chat-avatar w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center shadow-md ${
                       m.role === "user"
                         ? "bg-gradient-to-br from-indigo-500 to-purple-600 border border-indigo-400/50"
-                        : "bg-[#1e293b] border border-[var(--border-color)]"
+                        : "bg-gradient-to-br from-indigo-900/80 to-purple-900/60 border border-indigo-500/30"
                     }`}>
                       {m.role === "user" ? (
-                        <User className="w-4 h-4 text-white" />
+                        <User className="w-3.5 h-3.5 text-white" />
                       ) : (
-                        <Bot className="w-4 h-4 text-indigo-400" />
+                        <Bot className="w-3.5 h-3.5 text-indigo-300" />
                       )}
                     </div>
                   </div>
@@ -443,15 +445,21 @@ body: JSON.stringify({
                   <div
                     className={`flex flex-col ${
                       m.role === "user"
-                        ? "items-end max-w-[85%] md:max-w-[75%]"
+                        ? "items-end max-w-[88%] md:max-w-[75%]"
                         : "items-start flex-1 min-w-0"
                     }`}
                   >
+                    {/* Role label */}
+                    <span className={`text-[0.62rem] font-semibold mb-1 tracking-wide uppercase ${
+                      m.role === "user" ? "text-indigo-300 pr-1" : "text-indigo-400/70 pl-1"
+                    }`}>
+                      {m.role === "user" ? "You" : "AI Tutor"}
+                    </span>
                     <div
                       className={`chat-bubble relative transition-all duration-300 ${
                         m.role === "user"
-                          ? `${m.image ? "p-4" : "px-4 py-2.5"} shadow-lg backdrop-blur-xl bg-gradient-to-br from-indigo-500/80 to-purple-600/80 border border-indigo-400/40 text-white rounded-2xl rounded-tr-sm`
-                          : "edu-assistant-bubble w-full pt-1 pb-3 pr-10 pl-4 bg-transparent border-0 shadow-none text-gray-100 rounded-none text-left"
+                          ? `${m.image ? "p-3.5" : "px-4 py-2.5"} shadow-lg backdrop-blur-xl bg-gradient-to-br from-indigo-500/85 to-purple-600/85 border border-indigo-400/30 text-white rounded-2xl rounded-tr-sm text-[0.9rem] leading-relaxed`
+                          : "edu-assistant-bubble w-full"
                       } ${isLastStreaming ? "is-streaming" : ""}`}
                     >
                       {/* Copy button (assistant messages only) */}
@@ -471,15 +479,21 @@ body: JSON.stringify({
                       )}
 
                       {m.image && (
-                        <img
-                          src={m.image}
-                          alt="Uploaded problem"
-                          className="max-w-sm w-full object-contain rounded-xl mb-4 border border-white/10 shadow-lg"
-                        />
+                        <div className="mb-3">
+                          <a href={m.image} target="_blank" rel="noopener noreferrer" title="Tap to view full image">
+                            <img
+                              src={m.image}
+                              alt="Uploaded image"
+                              className="block rounded-xl border border-white/20 shadow-lg object-cover transition-transform active:scale-95 hover:brightness-110"
+                              style={{ maxWidth: '160px', maxHeight: '160px', width: 'auto', height: 'auto' }}
+                            />
+                          </a>
+                          <p className="text-[0.6rem] text-indigo-300/60 mt-1 pl-0.5">Tap to view full image</p>
+                        </div>
                       )}
 
                       <div className={`edu-prose max-w-none break-words ${
-                        m.role === "user" ? "text-white text-[0.95rem] leading-relaxed" : ""
+                        m.role === "user" ? "text-white text-[0.9rem] leading-relaxed" : ""
                       }`}>
                         {showTyping ? (
                           <div className="flex items-center gap-1.5 py-1.5">
@@ -503,7 +517,9 @@ body: JSON.stringify({
 
                     {/* Timestamp */}
                     {m.timestamp && (
-                      <span className="text-[10px] text-gray-500 mt-1.5 px-1 tracking-wide">{m.timestamp}</span>
+                      <span className={`text-[0.58rem] text-gray-500/70 mt-1 tracking-wide ${
+                        m.role === "user" ? "pr-1" : "pl-1"
+                      }`}>{m.timestamp}</span>
                     )}
                   </div>
                 </div>
@@ -515,13 +531,13 @@ body: JSON.stringify({
       </div>
 
       {/* Input Bar Area (Pinned to Bottom of Chat) */}
-      <div className="chat-composer-shell flex-shrink-0 py-3 px-2 md:px-4 z-20">
+      <div className="chat-composer-shell flex-shrink-0 pt-2 pb-2 md:pb-4 px-2 md:px-4 z-20">
         <div className="max-w-3xl lg:max-w-4xl mx-auto flex flex-col gap-2">
 
           {/* Image Preview Thumbnail */}
           {imagePreview && (
             <div className="relative inline-block self-start mb-1 bg-[#1f2937] p-2 rounded-2xl border border-white/10 shadow-xl">
-              <img src={imagePreview} alt="Preview" className="h-16 w-16 object-cover rounded-xl border border-indigo-500/50 shadow-inner" />
+              <img src={imagePreview} alt="Preview" className="h-14 w-14 object-cover rounded-xl border border-indigo-500/50 shadow-inner" />
               <button
                 onClick={() => setImagePreview(null)}
                 className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-400 shadow-lg transition-transform hover:scale-110"
@@ -533,10 +549,10 @@ body: JSON.stringify({
 
           {/* Solid Input Pill */}
           <div
-            className="chat-composer chat-input-wrap flex items-end relative rounded-[32px] p-2 shadow-2xl transition-all"
+            className="chat-composer chat-input-wrap flex items-end relative rounded-3xl p-1 shadow-2xl transition-all"
           >
             <label className="ml-1 p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-full cursor-pointer transition-colors flex items-center justify-center">
-              <ImageIcon className="w-5 h-5" />
+              <ImageIcon className="w-[1.15rem] h-[1.15rem]" />
               <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
             </label>
 
@@ -545,10 +561,10 @@ body: JSON.stringify({
               value={input}
               onChange={handleTextareaChange}
               onKeyDown={handleKeyDown}
-              placeholder="Message AI Tutor..."
+              placeholder="Ask anything..."
               disabled={isStreaming}
               rows={1}
-              className="flex-1 bg-transparent border-none px-3 py-2 text-[0.95rem] text-white placeholder-gray-400 focus:outline-none focus:ring-0 resize-none max-h-[132px]"
+              className="flex-1 bg-transparent border-none px-1.5 py-2 text-[0.85rem] md:text-[0.95rem] text-white placeholder-gray-500 focus:outline-none focus:ring-0 resize-none max-h-[100px] leading-relaxed"
             />
 
 {messages.length > 0 && !isStreaming && (
