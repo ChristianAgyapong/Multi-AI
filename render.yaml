@@ -1,15 +1,14 @@
-# Render Blueprint — Multimodal AI Tutor (Backend only)
+﻿# Render Blueprint — Multimodal AI Tutor (Backend only)
 #
 # The FastAPI backend is deployed here on Render.
 # The Next.js frontend is deployed separately on Vercel.
 #
 # How to deploy:
 #   1. Push this repo to GitHub.
-#   2. In Render: "New +" → "Blueprint" → select this repo.
+#   2. In Render: "New +" -> "Blueprint" -> select this repo.
 #   3. After the service is live, copy its public URL (e.g. https://xxx.onrender.com).
 #   4. In Vercel, set NEXT_PUBLIC_API_URL=https://xxx.onrender.com for the frontend.
 #   5. Come back here and set CORS_ORIGINS=https://your-vercel-app.vercel.app
-#      so the backend only accepts requests from your frontend.
 #
 # See DEPLOY.md for the full step-by-step guide.
 
@@ -24,38 +23,55 @@ services:
     healthCheckPath: /health
     autoDeploy: true
     envVars:
-      # ── Python runtime ────────────────────────────────────────────────
+      # Python runtime
       - key: PYTHON_VERSION
         value: 3.11.9
 
-      # ── Frontend serving — disabled; Vercel hosts the UI ─────────────
+      # Frontend serving disabled (Vercel hosts the UI)
       - key: SERVE_FRONTEND
         value: "0"
 
-      # ── CORS — set to your Vercel URL after the frontend is deployed ──
-      # Example: CORS_ORIGINS=https://multimodal-edu-tutor.vercel.app
+      # CORS - fill in your Vercel URL after the frontend is deployed
       - key: CORS_ORIGINS
-        sync: false           # fill this in the Render dashboard
+        sync: false
 
-      # ── LLM provider (choose one) ─────────────────────────────────────
+      # Primary LLM: Groq (OpenAI-compatible, free tier)
       - key: LLM_PROVIDER
-        sync: false           # e.g. gemini | openai | ollama | anthropic
+        value: openai
 
-      # Google Gemini (free tier) — get key at https://aistudio.google.com
+      # Groq API key - paste your key (starts with gsk_)
+      - key: OPENAI_API_KEY
+        sync: false
+
+      - key: OPENAI_BASE_URL
+        value: https://api.groq.com/openai/v1
+
+      - key: OPENAI_MODEL
+        value: llama-3.3-70b-versatile
+
+      - key: OPENAI_FALLBACK_MODELS
+        value: llama-3.1-8b-instant,llama-3.3-70b-versatile,mixtral-8x7b-32768
+
+      # Vision/document model: OpenRouter (free)
+      # OpenRouter API key - paste your key (starts with sk-or-v1-)
+      - key: OPENROUTER_API_KEY
+        sync: false
+
+      - key: OPENROUTER_BASE_URL
+        value: https://openrouter.ai/api/v1
+
+      - key: OPENROUTER_MODEL
+        value: google/gemma-4-26b-a4b-it:free
+
+      - key: OPENROUTER_FALLBACK_MODELS
+        value: openrouter/free,meta-llama/llama-3.3-70b-instruct:free
+
+      # Optional extras (leave blank if not using)
       - key: GEMINI_API_KEY
         sync: false
 
-      # OpenAI-compatible (OpenRouter free models)
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: OPENAI_BASE_URL
-        value: https://openrouter.ai/api/v1
-      - key: OPENAI_MODEL
-        value: google/gemma-4-26b-a4b-it:free
-      - key: OPENAI_VISION_MODEL
-        value: google/gemma-4-26b-a4b-it:free
-
-      # Anthropic Claude (optional fallback)
       - key: ANTHROPIC_API_KEY
         sync: false
 
+      - key: ELEVENLABS_API_KEY
+        sync: false
