@@ -533,7 +533,14 @@ body {
 
 @media (max-width: 900px) {
   .quiz-controls-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+  .quiz-topic-input {
+    grid-column: span 2;
+  }
+  .quiz-generate-btn {
+    grid-column: span 2;
   }
 }
 
