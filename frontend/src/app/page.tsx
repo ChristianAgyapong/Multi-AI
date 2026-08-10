@@ -58,9 +58,10 @@ export default function Home() {
   const [chatMode, setChatMode] = useState<string>("direct");
   const [sessionKey, setSessionKey] = useState<number>(0);
 
-  // After mount: open sidebar on desktop, keep closed on mobile
+  // After mount: open sidebar only on true desktop screens
   useEffect(() => {
-    if (window.innerWidth >= 768) {
+    const isDesktop = window.matchMedia("(min-width: 768px)").matches;
+    if (isDesktop) {
       setIsSidebarOpen(true);
     }
   }, []);
@@ -78,7 +79,9 @@ export default function Home() {
     setSessionKey(prev => prev + 1);
     
     setActiveTab("chat");
-    if (window.innerWidth < 768) setIsSidebarOpen(false);
+    if (!window.matchMedia("(min-width: 768px)").matches) {
+      setIsSidebarOpen(false);
+    }
   };
 
   return (
