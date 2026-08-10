@@ -15,6 +15,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
+import { setStoredSessionId } from "@/lib/session";
 
 type Tab = "chat" | "quiz" | "flashcards" | "debate";
 
@@ -54,6 +55,23 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("chat");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [chatMode, setChatMode] = useState<string>("direct");
+  const [sessionKey, setSessionKey] = useState<number>(0);
+
+  const handleStartSession = () => {
+    // Clear frontend local storage for chat
+    try {
+      window.localStorage.removeItem("multimodal-edu-tutor-chat");
+    } catch {}
+    
+    // Clear backend session ID
+    setStoredSessionId(null);
+    
+    // Force Chat component to remount with empty state
+    setSessionKey(prev => prev + 1);
+    
+    setActiveTab("chat");
+    if (window.innerWidth < 768) setIsSidebarOpen(false);
+  };
 
   return (
     <>
@@ -75,10 +93,7 @@ export default function Home() {
         {isSidebarOpen && (
           <aside className="sidebar-container fixed md:relative left-0 top-0 bottom-0 z-50 w-[85%] max-w-[320px] md:w-[320px] shrink-0 flex flex-col h-full overflow-y-auto shadow-2xl md:shadow-none">
             <Sidebar
-              onStartSession={() => {
-                setActiveTab("chat");
-                if (window.innerWidth < 768) setIsSidebarOpen(false);
-              }}
+              onStartSession={handleStartSession}
               chatMode={chatMode}
               setChatMode={setChatMode}
             />
@@ -130,7 +145,7 @@ export default function Home() {
           {/* Tab panel */}
           <div className="flex-1 min-h-0 relative flex flex-col">
             <div key={activeTab} className="tab-content-enter h-full">
-              {activeTab === "chat" && <Chat mode={chatMode} />}
+              {activeTab === "chat" && <Chat key={sessionKey} mode={chatMode} />}
               {activeTab === "quiz" && <Quiz />}
               {activeTab === "flashcards" && <Flashcards />}
               {activeTab === "debate" && <Debate />}

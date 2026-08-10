@@ -555,6 +555,7 @@ body: JSON.stringify({
               <button
                 onClick={() => {
                   setMessages([]);
+                  setStoredSessionId(null);
                   try {
                     window.localStorage.removeItem(CHAT_STORAGE_KEY);
                   } catch {
