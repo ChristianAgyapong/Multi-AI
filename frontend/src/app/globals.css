@@ -809,7 +809,6 @@ body {
   .mobile-nav { display: flex; }
   .desktop-tabs { display: none !important; }
   .app-main { padding-bottom: 4.5rem !important; }
-  .sidebar-desktop { display: none !important; }
 }
 
 /* Prose invert for markdown in dark theme */

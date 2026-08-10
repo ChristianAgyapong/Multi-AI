@@ -378,7 +378,7 @@ body: JSON.stringify({
   return (
     <div className="chat-shell flex flex-col h-full relative overflow-hidden" onPaste={handlePaste}>
       {/* Messages List */}
-      <div className="chat-stage flex-1 overflow-y-auto px-4 pt-0 pb-2 md:px-8 bg-transparent">
+      <div className="chat-stage flex-1 overflow-y-auto px-3 pt-0 pb-2 md:px-8 bg-transparent">
         <div className="chat-stage-inner max-w-3xl lg:max-w-4xl mx-auto flex flex-col space-y-4">
           {messages.length === 0 ? (
             <div className="chat-empty flex flex-col items-center justify-center min-h-[62vh] text-center text-gray-400 gap-5 animate-fade-in-up px-2">
@@ -515,7 +515,7 @@ body: JSON.stringify({
       </div>
 
       {/* Input Bar Area (Pinned to Bottom of Chat) */}
-      <div className="chat-composer-shell flex-shrink-0 py-3 px-4 z-20">
+      <div className="chat-composer-shell flex-shrink-0 py-3 px-2 md:px-4 z-20">
         <div className="max-w-3xl lg:max-w-4xl mx-auto flex flex-col gap-2">
 
           {/* Image Preview Thumbnail */}
