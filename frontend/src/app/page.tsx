@@ -15,6 +15,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
+import { setStoredSessionId } from "@/lib/session";
 
 type Tab = "chat" | "quiz" | "flashcards" | "debate";
 
@@ -54,6 +55,23 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("chat");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [chatMode, setChatMode] = useState<string>("direct");
+  const [sessionKey, setSessionKey] = useState<number>(0);
+
+  const handleStartSession = () => {
+    // Clear frontend local storage for chat
+    try {
+      window.localStorage.removeItem("multimodal-edu-tutor-chat");
+    } catch {}
+    
+    // Clear backend session ID
+    setStoredSessionId(null);
+    
+    // Force Chat component to remount with empty state
+    setSessionKey(prev => prev + 1);
+    
+    setActiveTab("chat");
+    if (window.innerWidth < 768) setIsSidebarOpen(false);
+  };
 
   return (
     <>
@@ -63,11 +81,19 @@ export default function Home() {
         <div className="glow-bg" style={{ bottom: "-150px", right: "-150px", opacity: 0.15, animationDelay: "5s" }} />
         <div className="glow-bg" style={{ top: "40%", left: "50%", opacity: 0.08, animationDelay: "2s", width: "800px", height: "800px", transform: "translate(-50%, -50%)" }} />
 
-        {/* Sidebar — desktop only */}
+        {/* Mobile Sidebar Backdrop */}
         {isSidebarOpen && (
-          <aside className="sidebar-desktop w-[320px] shrink-0 z-10 flex flex-col h-full overflow-y-auto">
+          <div 
+            className="md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+
+        {/* Sidebar */}
+        {isSidebarOpen && (
+          <aside className="sidebar-container fixed md:relative left-0 top-0 bottom-0 z-50 w-[85%] max-w-[320px] md:w-[320px] shrink-0 flex flex-col h-full overflow-y-auto shadow-2xl md:shadow-none">
             <Sidebar
-              onStartSession={() => setActiveTab("chat")}
+              onStartSession={handleStartSession}
               chatMode={chatMode}
               setChatMode={setChatMode}
             />
@@ -81,7 +107,7 @@ export default function Home() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="hidden md:flex p-2 rounded-xl text-[var(--text-muted)] hover:text-white hover:bg-white/10 transition-all active:scale-95"
+                className="flex p-2 rounded-xl text-[var(--text-muted)] hover:text-white hover:bg-white/10 transition-all active:scale-95 z-50"
                 title="Toggle sidebar"
               >
                 {isSidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
@@ -119,7 +145,7 @@ export default function Home() {
           {/* Tab panel */}
           <div className="flex-1 min-h-0 relative flex flex-col">
             <div key={activeTab} className="tab-content-enter h-full">
-              {activeTab === "chat" && <Chat mode={chatMode} />}
+              {activeTab === "chat" && <Chat key={sessionKey} mode={chatMode} />}
               {activeTab === "quiz" && <Quiz />}
               {activeTab === "flashcards" && <Flashcards />}
               {activeTab === "debate" && <Debate />}
