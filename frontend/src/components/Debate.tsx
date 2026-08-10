@@ -227,13 +227,15 @@ export default function Debate() {
                 className="input-field text-center"
               />
 
-              <div className="flex flex-wrap justify-center gap-2">
-                {TOPIC_SUGGESTIONS.map((s) => (
-                  <button key={s} onClick={() => setTopic(s)} className="suggestion-chip text-[0.75rem] py-1.5">
-                    <Sparkles className="w-3 h-3" />
-                    {s}
-                  </button>
-                ))}
+              <div className="w-full">
+                <div className="flex md:flex-wrap justify-start md:justify-center gap-2 overflow-x-auto pb-1 px-1 md:px-0 no-scrollbar">
+                  {TOPIC_SUGGESTIONS.map((s) => (
+                    <button key={s} onClick={() => setTopic(s)} className="suggestion-chip shrink-0 text-[0.75rem] py-1.5">
+                      <Sparkles className="w-3 h-3 shrink-0" />
+                      <span className="whitespace-nowrap">{s}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <button
@@ -279,8 +281,8 @@ export default function Debate() {
                     {Icon && <Icon className="w-3.5 h-3.5" />}
                     <span className="text-xs font-semibold">{style.label}</span>
                   </div>
-                  <div className={`max-w-[88%] rounded-2xl p-4 border ${style.bg}`}>
-                    <div className="prose prose-invert max-w-none text-sm leading-relaxed">
+                  <div className={`max-w-[88%] md:max-w-[80%] rounded-2xl p-4 md:p-5 border ${style.bg}`}>
+                    <div className="edu-prose max-w-none break-words">
                       <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
                         {m.content}
                       </ReactMarkdown>
