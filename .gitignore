@@ -20,6 +20,11 @@ node_modules/
 out/
 npm-debug.log*
 
+# Frontend build artefacts (generated, never commit)
+frontend/.next/
+frontend/tsconfig.tsbuildinfo
+frontend/out/
+
 # Misc
 .DS_Store
 *.log

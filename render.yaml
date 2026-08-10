@@ -1,17 +1,17 @@
-# Render Blueprint — Multimodal AI Tutor
+# Render Blueprint — Multimodal AI Tutor (Backend only)
 #
-# Deploy the FastAPI backend as a Render Web Service.
+# The FastAPI backend is deployed here on Render.
+# The Next.js frontend is deployed separately on Vercel.
 #
-# How to use:
+# How to deploy:
 #   1. Push this repo to GitHub.
-#   2. In Render, click "New +" → "Blueprint" → select this repo.
-#   3. Render auto-detects render.yaml and creates the service.
-#   4. Set your LLM provider env vars (LLM_PROVIDER, GEMINI_API_KEY, etc.)
-#      in the service dashboard (or via the "envVars" below).
+#   2. In Render: "New +" → "Blueprint" → select this repo.
+#   3. After the service is live, copy its public URL (e.g. https://xxx.onrender.com).
+#   4. In Vercel, set NEXT_PUBLIC_API_URL=https://xxx.onrender.com for the frontend.
+#   5. Come back here and set CORS_ORIGINS=https://your-vercel-app.vercel.app
+#      so the backend only accepts requests from your frontend.
 #
-# Note: On Render free tier the filesystem is EPHEMERAL — the SQLite cache
-# (data/cache.db) and student profile JSON reset on every redeploy. This is
-# acceptable for a stopgap MVP; for persistence, add a managed Postgres/Redis.
+# See DEPLOY.md for the full step-by-step guide.
 
 services:
   - type: web
@@ -20,14 +20,32 @@ services:
     plan: free
     rootDir: .
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn backend.api:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     autoDeploy: true
     envVars:
+      # ── Python runtime ────────────────────────────────────────────────
+      - key: PYTHON_VERSION
+        value: 3.11.9
+
+      # ── Frontend serving — disabled; Vercel hosts the UI ─────────────
+      - key: SERVE_FRONTEND
+        value: "0"
+
+      # ── CORS — set to your Vercel URL after the frontend is deployed ──
+      # Example: CORS_ORIGINS=https://multimodal-edu-tutor.vercel.app
+      - key: CORS_ORIGINS
+        sync: false           # fill this in the Render dashboard
+
+      # ── LLM provider (choose one) ─────────────────────────────────────
       - key: LLM_PROVIDER
-        sync: false
+        sync: false           # e.g. gemini | openai | ollama | anthropic
+
+      # Google Gemini (free tier) — get key at https://aistudio.google.com
       - key: GEMINI_API_KEY
         sync: false
+
+      # OpenAI-compatible (OpenRouter free models)
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_BASE_URL
@@ -37,17 +55,7 @@ services:
       - key: OPENAI_VISION_MODEL
         value: google/gemma-4-26b-a4b-it:free
 
-  - type: web
-    name: multimodal-tutor-web
-    runtime: node
-    plan: free
-    rootDir: frontend
-    buildCommand: npm install && npm run build
-    startCommand: npm start
-    autoDeploy: true
-    envVars:
-      - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: multimodal-tutor-api
-          envVarKey: RENDER_EXTERNAL_URL
+      # Anthropic Claude (optional fallback)
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
