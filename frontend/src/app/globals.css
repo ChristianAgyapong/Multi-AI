@@ -777,38 +777,62 @@ body {
   left: 0;
   right: 0;
   z-index: 50;
-  background: rgba(7, 11, 20, 0.92);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid var(--border-color);
-  padding: 0.5rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom));
+  background: rgba(5, 8, 18, 0.96);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 0.35rem 0.5rem calc(0.35rem + env(safe-area-inset-bottom));
+  gap: 0;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.4);
 }
 .mobile-nav-item {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 6px 4px;
+  gap: 3px;
+  padding: 7px 4px 5px;
   border: none;
   background: none;
   cursor: pointer;
-  color: var(--text-dim);
-  font-size: 0.625rem;
-  font-weight: 500;
-  transition: color 0.2s;
+  color: rgba(148, 163, 184, 0.6);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: color 0.2s, transform 0.15s;
+  border-radius: 10px;
+  position: relative;
 }
+.mobile-nav-item:active { transform: scale(0.93); }
 .mobile-nav-item.active {
   color: #a5b4fc;
+  background: rgba(99, 102, 241, 0.1);
 }
-.mobile-nav-item.active[data-tab="quiz"] { color: #6ee7b7; }
-.mobile-nav-item.active[data-tab="flashcards"] { color: #fcd34d; }
-.mobile-nav-item.active[data-tab="debate"] { color: #f9a8d4; }
+.mobile-nav-item.active[data-tab="quiz"] { color: #6ee7b7; background: rgba(16, 185, 129, 0.1); }
+.mobile-nav-item.active[data-tab="flashcards"] { color: #fcd34d; background: rgba(245, 158, 11, 0.1); }
+.mobile-nav-item.active[data-tab="debate"] { color: #f9a8d4; background: rgba(236, 72, 153, 0.1); }
+
+/* Sidebar container — slides in from left on mobile */
+.sidebar-container {
+  background: rgba(7, 11, 22, 0.98);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Hide scrollbar utility */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
 
 @media (max-width: 768px) {
   .mobile-nav { display: flex; }
   .desktop-tabs { display: none !important; }
-  .app-main { padding-bottom: 4.5rem !important; }
+  .app-main { padding-bottom: 5rem !important; }
+  
+  /* Tighten header on mobile */
+  header { min-height: 48px; }
+  
+  /* Suggestion chip slightly smaller on mobile */
+  .suggestion-chip { font-size: 0.775rem; padding: 0.38rem 0.75rem; }
 }
 
 /* Prose invert for markdown in dark theme */

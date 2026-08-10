@@ -329,8 +329,8 @@ export default function Sidebar({ onStartSession, chatMode, setChatMode }: Sideb
                 <p className="sidebar-metric-value text-indigo-300">{interactionCount}</p>
                 <p className="text-[0.65rem] text-[var(--text-dim)] mt-0.5">Sessions</p>
               </div>
-              <div className="sidebar-metric-card text-center">
-                <p className="sidebar-metric-value text-purple-300 truncate" title={studyLevel}>{studyLevel}</p>
+              <div className="sidebar-metric-card text-center overflow-hidden">
+                <p className="text-sm font-bold text-purple-300 leading-tight break-words hyphens-auto" title={studyLevel}>{studyLevel}</p>
                 <p className="text-[0.65rem] text-[var(--text-dim)] mt-0.5">Level</p>
               </div>
             </div>

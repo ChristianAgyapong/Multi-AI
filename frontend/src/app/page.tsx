@@ -53,7 +53,10 @@ const tabs: {
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("chat");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  // Default sidebar closed on mobile (< 768px), open on desktop
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(
+    typeof window !== "undefined" ? window.innerWidth >= 768 : true
+  );
   const [chatMode, setChatMode] = useState<string>("direct");
   const [sessionKey, setSessionKey] = useState<number>(0);
 

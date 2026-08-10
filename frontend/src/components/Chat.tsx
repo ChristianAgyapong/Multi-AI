@@ -381,34 +381,36 @@ body: JSON.stringify({
       <div className="chat-stage flex-1 overflow-y-auto px-3 pt-0 pb-2 md:px-8 bg-transparent">
         <div className="chat-stage-inner max-w-3xl lg:max-w-4xl mx-auto flex flex-col space-y-4">
           {messages.length === 0 ? (
-            <div className="chat-empty flex flex-col items-center justify-center min-h-[62vh] text-center text-gray-400 gap-5 animate-fade-in-up px-2">
-              <div className="relative p-6 rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-600/10 border border-indigo-500/30 shadow-[0_0_80px_rgba(99,102,241,0.18)]">
-                <Bot className="w-14 h-14 text-indigo-300" />
+            <div className="chat-empty flex flex-col items-center justify-center min-h-[55vh] text-center text-gray-400 gap-3 md:gap-5 animate-fade-in-up px-2">
+              <div className="relative p-4 md:p-6 rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-600/10 border border-indigo-500/30 shadow-[0_0_60px_rgba(99,102,241,0.18)]">
+                <Bot className="w-10 h-10 md:w-14 md:h-14 text-indigo-300" />
                 <span className="absolute inset-0 rounded-full animate-ping bg-indigo-500/10" />
               </div>
-              <h3 className="gradient-text text-3xl font-semibold text-white">How can I help you learn today?</h3>
+              <h3 className="gradient-text text-xl md:text-3xl font-semibold text-white leading-tight px-2">How can I help you learn today?</h3>
 
-              {/* Quick-start suggestions */}
-              <div className="chat-empty-suggestions flex flex-wrap justify-center gap-2 max-w-2xl">
-                {SUGGESTIONS.map((s) => (
-                  <button key={s} onClick={() => handleSend(s)} className="suggestion-chip">
-                    <Sparkles className="w-3 h-3 shrink-0" />
-                    <span>{s}</span>
-                  </button>
-                ))}
+              {/* Quick-start suggestions — horizontal scroll on mobile */}
+              <div className="w-full max-w-2xl">
+                <div className="flex md:flex-wrap justify-start md:justify-center gap-2 overflow-x-auto pb-1 px-1 md:px-0 no-scrollbar">
+                  {SUGGESTIONS.map((s) => (
+                    <button key={s} onClick={() => handleSend(s)} className="suggestion-chip shrink-0">
+                      <Sparkles className="w-3 h-3 shrink-0" />
+                      <span className="whitespace-nowrap">{s}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {/* Feature highlights */}
-              <div className="chat-feature-grid grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 max-w-lg w-full">
+              {/* Feature highlights — always 3 columns, compact on mobile */}
+              <div className="chat-feature-grid grid grid-cols-3 gap-2 md:gap-3 w-full max-w-lg">
                 {[
-                  { icon: ImageIcon, label: "Paste screenshots", sub: "Ctrl+V any image" },
-                  { icon: Calculator, label: "Live math", sub: "LaTeX rendering" },
-                  { icon: Target, label: "3 tutor modes", sub: "Socratic · Direct · Exam" },
+                  { icon: ImageIcon, label: "Screenshots", sub: "Paste images" },
+                  { icon: Calculator, label: "Live math", sub: "LaTeX" },
+                  { icon: Target, label: "3 modes", sub: "Socratic · Direct" },
                 ].map(({ icon: Icon, label, sub }) => (
-                  <div key={label} className="chat-feature-card group flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all hover:-translate-y-1 hover:border-indigo-500/30 hover:shadow-[0_8px_24px_rgba(99,102,241,0.15)]">
-                    <Icon className="w-5 h-5 text-indigo-400 group-hover:text-indigo-300 transition-colors" />
-                    <span className="text-xs font-medium text-[var(--text-main)]">{label}</span>
-                    <span className="text-[0.65rem] text-[var(--text-dim)]">{sub}</span>
+                  <div key={label} className="chat-feature-card group flex flex-col items-center gap-1 p-2.5 md:p-3 rounded-xl transition-all hover:-translate-y-1 hover:border-indigo-500/30 hover:shadow-[0_8px_24px_rgba(99,102,241,0.15)]">
+                    <Icon className="w-4 h-4 md:w-5 md:h-5 text-indigo-400 group-hover:text-indigo-300 transition-colors" />
+                    <span className="text-[0.72rem] md:text-xs font-medium text-[var(--text-main)] leading-tight">{label}</span>
+                    <span className="text-[0.6rem] md:text-[0.65rem] text-[var(--text-dim)] leading-tight">{sub}</span>
                   </div>
                 ))}
               </div>
