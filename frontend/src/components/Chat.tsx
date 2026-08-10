@@ -1,14 +1,36 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
-import { Send, Image as ImageIcon, Sparkles, Trash2, X, User, Square, Copy, Check, Bot, Calculator, Target } from "lucide-react";
+import { Components } from "react-markdown";
+import {
+  Send, Image as ImageIcon, Sparkles, Trash2, X, User, Square,
+  Copy, Check, Bot, Calculator, Target, ChevronRight
+} from "lucide-react";
 import { setStoredSessionId, withSessionHeaders } from "@/lib/session";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+// Persist chat history to localStorage so it survives tab switches (e.g. moving
+// Chat → Quiz → Flashcards, then back to Chat) and page reloads. Clearing the
+// chat clears this key too.
+const CHAT_STORAGE_KEY = "multimodal-edu-tutor-chat";
+
+function loadStoredMessages(): Message[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(CHAT_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed as Message[];
+  } catch {
+    // Ignore corrupted storage and start fresh
+  }
+  return [];
+}
 
 interface Message {
   role: "user" | "assistant";
@@ -91,24 +113,111 @@ interface ChatProps {
   mode?: string;
 }
 
+// ── Custom ReactMarkdown components for rich educational rendering ────────────
+const makeMdComponents = (onCopy: (text: string) => void): Components => ({
+  // Inline code → styled chip
+  code({ node, className, children, ...props }: any) {
+    const match = /language-(\w+)/.exec(className || "");
+    const lang = match?.[1] ?? "";
+    const isBlock = !!match;
+    const raw = String(children).replace(/\n$/, "");
+
+    if (isBlock) {
+      return (
+        <div className="edu-code-block">
+          {lang && <span className="edu-code-lang">{lang}</span>}
+          <button
+            className="edu-code-copy"
+            onClick={() => onCopy(raw)}
+            title="Copy code"
+          >
+            <Copy className="w-3 h-3" />
+          </button>
+          <pre><code className={className} {...props}>{children}</code></pre>
+        </div>
+      );
+    }
+    return <code className="edu-inline-code" {...props}>{children}</code>;
+  },
+
+  // Blockquote → educational callout card
+  blockquote({ children }: any) {
+    return <div className="edu-callout">{children}</div>;
+  },
+
+  // Headings — strong visual hierarchy
+  h1({ children }: any) { return <h1 className="edu-h1">{children}</h1>; },
+  h2({ children }: any) { return <h2 className="edu-h2">{children}</h2>; },
+  h3({ children }: any) { return <h3 className="edu-h3">{children}</h3>; },
+
+  // Tables
+  table({ children }: any) { return <div className="edu-table-wrap"><table>{children}</table></div>; },
+
+  // Paragraphs
+  p({ children }: any) { return <p className="edu-p">{children}</p>; },
+
+  // Lists
+  ul({ children }: any) { return <ul className="edu-ul">{children}</ul>; },
+  ol({ children }: any) { return <ol className="edu-ol">{children}</ol>; },
+  li({ children }: any) { return <li className="edu-li"><ChevronRight className="edu-li-icon" /><span>{children}</span></li>; },
+});
+
+// Wrap $$...$$ display-math output in a formula card.
+// rehype-katex outputs <span class="katex-display"> for display math.
+function wrapDisplayMath(content: string): string {
+  return content;
+}
+
+
 export default function Chat({ mode: modeProp }: ChatProps = {}) {
+  // Intentionally start empty on both server and client to avoid a hydration
+  // mismatch (localStorage is only available on the client). Stored messages
+  // are restored in a useEffect after mount.
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const agentMode = modeProp ?? "direct";
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [codeCopied, setCodeCopied] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const scrollToBottom = () => {
+  const handleCodeCopy = useCallback((text: string) => {
+    navigator.clipboard.writeText(text).catch(() => {});
+    setCodeCopied(true);
+    setTimeout(() => setCodeCopied(false), 1800);
+  }, []);
+
+  const mdComponents = makeMdComponents(handleCodeCopy);
+
+const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
     scrollToBottom();
   }, [messages, isStreaming]);
+
+  // Restore persisted messages once, after hydration. This runs on the client
+  // only, so it won't cause a server/client HTML mismatch.
+  useEffect(() => {
+    const stored = loadStoredMessages();
+    if (stored.length > 0) {
+      setMessages(stored);
+    }
+  }, []);
+
+  // Persist messages to localStorage whenever they change, so the conversation
+  // is restored after switching tabs or reloading the page.
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
+    } catch {
+      // Storage may be full or unavailable — fail silently
+    }
+  }, [messages]);
 
   // Handle Clipboard Paste (Ctrl+V)
   const handlePaste = (e: React.ClipboardEvent) => {
@@ -335,14 +444,14 @@ body: JSON.stringify({
                     className={`flex flex-col ${
                       m.role === "user"
                         ? "items-end max-w-[85%] md:max-w-[75%]"
-                        : "items-start flex-1 min-w-0 pr-2"
+                        : "items-start flex-1 min-w-0"
                     }`}
                   >
                     <div
                       className={`chat-bubble relative transition-all duration-300 ${
                         m.role === "user"
                           ? `${m.image ? "p-4" : "px-4 py-2.5"} shadow-lg backdrop-blur-xl bg-gradient-to-br from-indigo-500/80 to-purple-600/80 border border-indigo-400/40 text-white rounded-2xl rounded-tr-sm`
-                          : "w-full py-2 pr-10 pl-0 bg-transparent border-0 shadow-none text-gray-100 rounded-none text-left"
+                          : "edu-assistant-bubble w-full pt-1 pb-3 pr-10 pl-4 bg-transparent border-0 shadow-none text-gray-100 rounded-none text-left"
                       } ${isLastStreaming ? "is-streaming" : ""}`}
                     >
                       {/* Copy button (assistant messages only) */}
@@ -369,15 +478,23 @@ body: JSON.stringify({
                         />
                       )}
 
-                      <div className={`prose prose-invert max-w-none text-[0.95rem] leading-relaxed break-words ${m.role === "user" ? "[&_p]:my-0" : ""}`}>
+                      <div className={`edu-prose max-w-none break-words ${
+                        m.role === "user" ? "text-white text-[0.95rem] leading-relaxed" : ""
+                      }`}>
                         {showTyping ? (
                           <div className="flex items-center gap-1.5 py-1.5">
                             <span className="typing-dot" />
                             <span className="typing-dot" style={{ animationDelay: "0.15s" }} />
                             <span className="typing-dot" style={{ animationDelay: "0.3s" }} />
                           </div>
+                        ) : m.role === "user" ? (
+                          <p className="my-0">{m.content}</p>
                         ) : (
-                          <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
+                          <ReactMarkdown
+                            remarkPlugins={[remarkMath, remarkGfm]}
+                            rehypePlugins={[rehypeKatex]}
+                            components={mdComponents}
+                          >
                             {showCaret ? `${normalizeMarkdown(m.content)} ▍` : normalizeMarkdown(m.content)}
                           </ReactMarkdown>
                         )}
@@ -434,9 +551,16 @@ body: JSON.stringify({
               className="flex-1 bg-transparent border-none px-3 py-2 text-[0.95rem] text-white placeholder-gray-400 focus:outline-none focus:ring-0 resize-none max-h-[132px]"
             />
 
-            {messages.length > 0 && !isStreaming && (
+{messages.length > 0 && !isStreaming && (
               <button
-                onClick={() => setMessages([])}
+                onClick={() => {
+                  setMessages([]);
+                  try {
+                    window.localStorage.removeItem(CHAT_STORAGE_KEY);
+                  } catch {
+                    // Ignore storage errors
+                  }
+                }}
                 className="mr-1 p-2 rounded-full text-gray-500 hover:text-red-400 hover:bg-white/5 transition-colors"
                 title="Clear chat"
                 type="button"

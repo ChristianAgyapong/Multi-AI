@@ -20,29 +20,30 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from backend.llm_client import get_client
 from backend.cache import get_cached_quiz, set_cached_quiz
 
-QUIZ_SYSTEM_PROMPT = """You generate quiz questions. Output ONLY valid JSON. No markdown outside the JSON, no extra text.
+QUIZ_SYSTEM_PROMPT = """You generate rigorous academic quiz questions that help students truly master a topic. Output ONLY valid JSON — no markdown, no extra text, nothing outside the JSON object.
 
 Schema: {"topic":"string","questions":[{"question":"string","options":["A","B","C","D"],"correct_index":0,"explanation":"string"}]}
 
-Rules:
-- Each question must cover a DIFFERENT angle, scenario, or sub-topic. Do NOT repeat the same question or concept with slightly different wording.
-- For each question, write a SHORT explanation of 1-2 sentences that teaches the core concept simply.
-- Make the explanation BRIEF and CLEAR: state the key idea in plain words, and only call out the most tempting wrong option if it adds insight.
-- Do NOT repeat or restate the question text or the correct option. Teach the underlying idea so the student actually learns it.
-- Use simple language, a short real-world example when helpful.
-- Options: max 10 words each. Keep questions concise but not shallow."""
+Core rules that MUST be followed for every question:
+- VARIETY IS MANDATORY. Every question must test a different sub-topic, mechanism, angle, or application. Do NOT repeat the same idea in different words.
+- EACH QUESTION MUST HAVE A PURPOSE. Ask yourself: "Will getting this right prove the student understands something important?" If not, replace it.
+- THE WRONG OPTIONS MUST BE PLAUSIBLE. Distractors should reflect real misconceptions or common errors, not obvious nonsense.
+- EXPLANATIONS MUST TEACH, NOT JUST CONFIRM. The explanation must explain WHY the correct answer is right and, where helpful, why the most tempting wrong option is wrong. Keep it to 2-3 sentences. Do NOT just restate the question or repeat the correct answer.
+- Options: max 12 words each. Questions: clear, precise, unambiguous."""
 
 # Per-batch prompt for parallel generation
-BATCH_PROMPT = """Generate {n} MCQ questions about: {topic}. {difficulty}{context}
+BATCH_PROMPT = """Generate {n} MCQ questions about: {topic}.
 
-Requirements:
+Difficulty tier: {difficulty}
+{context}
+Requirements (every item must satisfy ALL of these):
 - Return ONLY valid JSON with a "questions" array.
-- Each item must have: question, options (4), correct_index, explanation.
-- Every question must be DISTINCT. Do NOT repeat the same question or concept across the batch; vary the scenario, wording, and tested angle.
-- The explanation must be SHORT (1-2 sentences) and teach the core concept in plain, simple words. Do NOT repeat or restate the question text or the correct option.
-- Only mention a tempting wrong option if it adds real insight; keep it brief.
-- Use simple language and a short real-world example when helpful.
-- Options should be short (max 10 words)."""
+- Each item: question (string), options (array of exactly 4 strings), correct_index (0-3), explanation (string).
+- DIFFERENT SUB-TOPIC OR ANGLE PER QUESTION. Do not test the same idea twice, even with different wording.
+- WRONG OPTIONS must reflect real student misconceptions — not made-up nonsense.
+- EXPLANATION (2-3 sentences): explain the core concept behind the correct answer and flag the most tempting wrong option if useful. Never just restate the question or correct answer.
+- Match the question style to the difficulty tier exactly as described above.
+- Options: max 12 words each."""
 
 
 def _extract_and_clean_json(text: str) -> str:
@@ -200,27 +201,77 @@ def generate_quiz(
     num_questions: int = 5,
     context_chunks: list[dict] | None = None,
     difficulty: str = "standard",
+    seen_questions: list[str] | None = None,
 ) -> dict:
     """Generate a quiz on `topic`. Returns a dict matching QUIZ_SYSTEM_PROMPT's
     schema. Raises ValueError if the model's output can't be parsed as JSON.
 
-    Speed optimizations:
-      - Caches results by (topic, num_questions, difficulty, context)
-      - For N > 4, splits into parallel batches of 4 questions (up to 4x faster)
-      - Optimized prompts with fewer tokens and lower max_tokens
-    """
-    # Check cache first (instant return on repeat topics)
-    cached = get_cached_quiz(topic, num_questions, difficulty, context_chunks)
-    if cached is not None:
-        return cached
+    Anti-repeat logic:
+      - `seen_questions`: list of question texts already shown to this student.
+        When provided, the cache is bypassed and the LLM is explicitly instructed
+        to avoid generating anything similar to those questions.
 
-    # Build difficulty prompt
+    Speed optimizations:
+      - Caches results by (topic, num_questions, difficulty, context) — only
+        when no seen_questions filtering is active.
+      - For N > 4, splits into parallel batches (up to 4x faster).
+    """
+    # Only use cache for the very first quiz on a topic (no seen-question filtering)
+    if not seen_questions:
+        cached = get_cached_quiz(topic, num_questions, difficulty, context_chunks)
+        if cached is not None:
+            return cached
+
+    # Build the avoid-repetition instruction from previously shown questions.
+    # Capped at 40 entries to stay within token limits.
+    avoid_instruction = ""
+    if seen_questions:
+        seen_cap = seen_questions[:40]
+        seen_list = "\n".join(f"  - {q}" for q in seen_cap)
+        avoid_instruction = (
+            "ANTI-REPEAT RULE (highest priority):\n"
+            "The student has ALREADY seen the questions listed below. You MUST NOT "
+            "generate any question that is the same as, similar to, or tests the exact "
+            "same fact or scenario as any of them. Find entirely different sub-topics, "
+            "mechanisms, angles, or real-world applications.\n"
+            f"Already-seen questions (never repeat or closely echo these):\n{seen_list}"
+        )
+
+    # Build difficulty prompt — each tier targets a distinct cognitive skill level
     if difficulty == "easy":
-        difficulty_prompt = "Difficulty: Easy. Make questions foundational and straightforward."
+        difficulty_prompt = (
+            "EASY TIER — Target: recognition and basic recall.\n"
+            "Question style: test whether the student knows key definitions, names, and core facts.\n"
+            "Example question types: 'What is X?', 'Which of these IS an example of X?', 'What does X mean?'\n"
+            "Wrong options should be plausible but clearly distinguishable from the correct answer.\n"
+            "Language: simple, direct — no complex scenarios or multi-step thinking required."
+        )
     elif difficulty == "hard":
-        difficulty_prompt = "Difficulty: Hard. Use nuanced distractors and multi-step reasoning."
-    else:
-        difficulty_prompt = "Difficulty: Standard."
+        difficulty_prompt = (
+            "HARD TIER — Target: critical thinking, analysis, and application under pressure.\n"
+            "Question style: MUST go beyond recall. Use scenarios, cause-and-effect chains, comparisons, "
+            "'what would happen if…' situations, and common expert-level misconceptions as distractors.\n"
+            "Example question types:\n"
+            "  - 'A student claims that X causes Y because of Z. What is wrong with this reasoning?'\n"
+            "  - 'Given that condition A and B are true, what is the most likely outcome and WHY?'\n"
+            "  - 'Which statement is TRUE about X, given [specific constraint]?'\n"
+            "  - 'What is the key difference between X and Y in the context of [real scenario]?'\n"
+            "Wrong options must exploit the most common deep misconceptions about the topic — not just "
+            "superficially wrong answers. A student who only memorised facts should find this difficult. "
+            "A student who truly understands the material should succeed."
+        )
+    else:  # standard
+        difficulty_prompt = (
+            "STANDARD TIER — Target: conceptual understanding and application.\n"
+            "Question style: go beyond simple recall. Test whether the student understands HOW and WHY, "
+            "not just WHAT. Use scenario-based questions, 'which best explains…', and 'why does X happen'.\n"
+            "Example question types:\n"
+            "  - 'Why does X happen in situation Y?'\n"
+            "  - 'Which of the following best explains the role of X?'\n"
+            "  - 'A student observes X — which concept does this demonstrate?'\n"
+            "Wrong options should be plausible to someone who knows the vocabulary but not the concepts. "
+            "A student who merely memorised definitions may struggle; a student who understands the topic should pass."
+        )
 
     # Build context string
     context_str = ""
@@ -238,6 +289,9 @@ def generate_quiz(
     # Token budget: questions + longer explanations that teach the concept.
     max_tokens = min(160 * num_questions + 120, 3000)
 
+    # Higher temperature when seen_questions present — pushes LLM toward more varied angles
+    gen_temperature = 0.55 if seen_questions else 0.2
+
     if num_questions <= BATCH_SIZE:
         # Single call for small quizzes (<=6 questions)
         llm = get_client()
@@ -247,6 +301,8 @@ def generate_quiz(
             difficulty=difficulty_prompt,
             context=context_str,
         )
+        if avoid_instruction:
+            prompt += f"\n\n{avoid_instruction}"
         max_retries = 2
         last_err = None
         for attempt in range(max_retries):
@@ -256,7 +312,7 @@ def generate_quiz(
                     messages=[{"role": "user", "content": prompt}],
                     max_tokens=max_tokens,
                     stream=False,
-                    temperature=0.2,
+                    temperature=gen_temperature,
                 )
                 raw_text = result if isinstance(result, str) else ""
                 if not raw_text:
@@ -292,6 +348,7 @@ def generate_quiz(
                     context_str,
                     i + 1,
                     num_batches,
+                    avoid_instruction,  # pass the anti-repeat instruction to every batch
                 ): i
                 for i in range(num_batches)
             }
@@ -339,11 +396,13 @@ def generate_quiz(
         "questions": questions[:num_questions],
     }
 
-    # Cache the result (best-effort)
-    try:
-        set_cached_quiz(topic, num_questions, difficulty, context_chunks, quiz_data)
-    except Exception:
-        pass
+    # Cache only first-time (no-filter) results. Personalised anti-repeat quizzes
+    # are not cached — they'd pollute the cache for other students / sessions.
+    if not seen_questions:
+        try:
+            set_cached_quiz(topic, num_questions, difficulty, context_chunks, quiz_data)
+        except Exception:
+            pass
 
     return quiz_data
 

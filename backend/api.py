@@ -352,9 +352,9 @@ async def upload_material(file: UploadFile, request: Request):
             except ImportError as e:
                 raise HTTPException(status_code=422, detail=f"PowerPoint support is not installed: {e}")
         elif lower.endswith(supported_text):
-            text = file_bytes.decode("utf-8", errors="ignore")
+            text = file_bytes.decode("utf-8", errors="ignore")  
         else:
-            raise HTTPException(
+            raise HTTPException(  
                 status_code=415,
                 detail=f"Unsupported file type: {file.filename}. Upload .txt, .md, .pdf, .docx, or .pptx.",
             )
