@@ -423,20 +423,20 @@ body: JSON.stringify({
               return (
                 <div
                   key={idx}
-                  className={`group flex gap-3 animate-fade-in-up w-full ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+                  className={`group flex gap-2.5 animate-fade-in-up w-full ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}
                   style={{ animationDelay: `${Math.min(idx * 0.05, 0.3)}s` }}
                 >
                   {/* Avatar */}
-                  <div className="flex-shrink-0 mt-1">
-                    <div className={`chat-avatar w-8 h-8 rounded-full flex items-center justify-center shadow-md ${
+                  <div className="flex-shrink-0 mt-0.5">
+                    <div className={`chat-avatar w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center shadow-md ${
                       m.role === "user"
                         ? "bg-gradient-to-br from-indigo-500 to-purple-600 border border-indigo-400/50"
-                        : "bg-[#1e293b] border border-[var(--border-color)]"
+                        : "bg-gradient-to-br from-indigo-900/80 to-purple-900/60 border border-indigo-500/30"
                     }`}>
                       {m.role === "user" ? (
-                        <User className="w-4 h-4 text-white" />
+                        <User className="w-3.5 h-3.5 text-white" />
                       ) : (
-                        <Bot className="w-4 h-4 text-indigo-400" />
+                        <Bot className="w-3.5 h-3.5 text-indigo-300" />
                       )}
                     </div>
                   </div>
@@ -445,15 +445,21 @@ body: JSON.stringify({
                   <div
                     className={`flex flex-col ${
                       m.role === "user"
-                        ? "items-end max-w-[85%] md:max-w-[75%]"
+                        ? "items-end max-w-[88%] md:max-w-[75%]"
                         : "items-start flex-1 min-w-0"
                     }`}
                   >
+                    {/* Role label */}
+                    <span className={`text-[0.62rem] font-semibold mb-1 tracking-wide uppercase ${
+                      m.role === "user" ? "text-indigo-300 pr-1" : "text-indigo-400/70 pl-1"
+                    }`}>
+                      {m.role === "user" ? "You" : "AI Tutor"}
+                    </span>
                     <div
                       className={`chat-bubble relative transition-all duration-300 ${
                         m.role === "user"
-                          ? `${m.image ? "p-4" : "px-4 py-2.5"} shadow-lg backdrop-blur-xl bg-gradient-to-br from-indigo-500/80 to-purple-600/80 border border-indigo-400/40 text-white rounded-2xl rounded-tr-sm`
-                          : "edu-assistant-bubble w-full pt-1 pb-3 pr-10 pl-4 bg-transparent border-0 shadow-none text-gray-100 rounded-none text-left"
+                          ? `${m.image ? "p-3.5" : "px-4 py-2.5"} shadow-lg backdrop-blur-xl bg-gradient-to-br from-indigo-500/85 to-purple-600/85 border border-indigo-400/30 text-white rounded-2xl rounded-tr-sm text-[0.9rem] leading-relaxed`
+                          : "edu-assistant-bubble w-full"
                       } ${isLastStreaming ? "is-streaming" : ""}`}
                     >
                       {/* Copy button (assistant messages only) */}
@@ -481,7 +487,7 @@ body: JSON.stringify({
                       )}
 
                       <div className={`edu-prose max-w-none break-words ${
-                        m.role === "user" ? "text-white text-[0.95rem] leading-relaxed" : ""
+                        m.role === "user" ? "text-white text-[0.9rem] leading-relaxed" : ""
                       }`}>
                         {showTyping ? (
                           <div className="flex items-center gap-1.5 py-1.5">
@@ -505,7 +511,9 @@ body: JSON.stringify({
 
                     {/* Timestamp */}
                     {m.timestamp && (
-                      <span className="text-[10px] text-gray-500 mt-1.5 px-1 tracking-wide">{m.timestamp}</span>
+                      <span className={`text-[0.58rem] text-gray-500/70 mt-1 tracking-wide ${
+                        m.role === "user" ? "pr-1" : "pl-1"
+                      }`}>{m.timestamp}</span>
                     )}
                   </div>
                 </div>
@@ -517,13 +525,13 @@ body: JSON.stringify({
       </div>
 
       {/* Input Bar Area (Pinned to Bottom of Chat) */}
-      <div className="chat-composer-shell flex-shrink-0 py-3 px-2 md:px-4 z-20">
+      <div className="chat-composer-shell flex-shrink-0 pt-2 pb-3 px-2 md:px-4 z-20" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
         <div className="max-w-3xl lg:max-w-4xl mx-auto flex flex-col gap-2">
 
           {/* Image Preview Thumbnail */}
           {imagePreview && (
             <div className="relative inline-block self-start mb-1 bg-[#1f2937] p-2 rounded-2xl border border-white/10 shadow-xl">
-              <img src={imagePreview} alt="Preview" className="h-16 w-16 object-cover rounded-xl border border-indigo-500/50 shadow-inner" />
+              <img src={imagePreview} alt="Preview" className="h-14 w-14 object-cover rounded-xl border border-indigo-500/50 shadow-inner" />
               <button
                 onClick={() => setImagePreview(null)}
                 className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-400 shadow-lg transition-transform hover:scale-110"
@@ -535,9 +543,9 @@ body: JSON.stringify({
 
           {/* Solid Input Pill */}
           <div
-            className="chat-composer chat-input-wrap flex items-end relative rounded-[32px] p-2 shadow-2xl transition-all"
+            className="chat-composer chat-input-wrap flex items-end relative rounded-[28px] p-1.5 shadow-2xl transition-all"
           >
-            <label className="ml-1 p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-full cursor-pointer transition-colors flex items-center justify-center">
+            <label className="ml-1 p-2.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-full cursor-pointer transition-colors flex items-center justify-center">
               <ImageIcon className="w-5 h-5" />
               <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
             </label>
@@ -547,10 +555,10 @@ body: JSON.stringify({
               value={input}
               onChange={handleTextareaChange}
               onKeyDown={handleKeyDown}
-              placeholder="Message AI Tutor..."
+              placeholder="Ask anything..."
               disabled={isStreaming}
               rows={1}
-              className="flex-1 bg-transparent border-none px-3 py-2 text-[0.95rem] text-white placeholder-gray-400 focus:outline-none focus:ring-0 resize-none max-h-[132px]"
+              className="flex-1 bg-transparent border-none px-2 py-2.5 text-[0.9rem] md:text-[0.95rem] text-white placeholder-gray-500 focus:outline-none focus:ring-0 resize-none max-h-[120px] leading-relaxed"
             />
 
 {messages.length > 0 && !isStreaming && (
