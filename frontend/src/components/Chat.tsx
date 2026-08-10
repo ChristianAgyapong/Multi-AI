@@ -531,7 +531,7 @@ body: JSON.stringify({
       </div>
 
       {/* Input Bar Area (Pinned to Bottom of Chat) */}
-      <div className="chat-composer-shell flex-shrink-0 pt-2 pb-3 px-2 md:px-4 z-20" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
+      <div className="chat-composer-shell flex-shrink-0 pt-2 pb-2 md:pb-4 px-2 md:px-4 z-20">
         <div className="max-w-3xl lg:max-w-4xl mx-auto flex flex-col gap-2">
 
           {/* Image Preview Thumbnail */}
@@ -549,10 +549,10 @@ body: JSON.stringify({
 
           {/* Solid Input Pill */}
           <div
-            className="chat-composer chat-input-wrap flex items-end relative rounded-[28px] p-1.5 shadow-2xl transition-all"
+            className="chat-composer chat-input-wrap flex items-end relative rounded-3xl p-1 shadow-2xl transition-all"
           >
-            <label className="ml-1 p-2.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-full cursor-pointer transition-colors flex items-center justify-center">
-              <ImageIcon className="w-5 h-5" />
+            <label className="ml-1 p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-full cursor-pointer transition-colors flex items-center justify-center">
+              <ImageIcon className="w-[1.15rem] h-[1.15rem]" />
               <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
             </label>
 
@@ -564,7 +564,7 @@ body: JSON.stringify({
               placeholder="Ask anything..."
               disabled={isStreaming}
               rows={1}
-              className="flex-1 bg-transparent border-none px-2 py-2.5 text-[0.9rem] md:text-[0.95rem] text-white placeholder-gray-500 focus:outline-none focus:ring-0 resize-none max-h-[120px] leading-relaxed"
+              className="flex-1 bg-transparent border-none px-1.5 py-2 text-[0.85rem] md:text-[0.95rem] text-white placeholder-gray-500 focus:outline-none focus:ring-0 resize-none max-h-[100px] leading-relaxed"
             />
 
 {messages.length > 0 && !isStreaming && (

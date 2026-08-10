@@ -83,7 +83,7 @@ export default function Home() {
 
   return (
     <>
-      <main className="app-main relative flex h-screen w-full gap-2 md:gap-3 overflow-hidden">
+      <main className="app-main relative flex w-full gap-2 md:gap-3 overflow-hidden">
         {/* Ambient glow */}
         <div className="glow-bg" style={{ top: "-150px", left: "-150px", opacity: 0.22 }} />
         <div className="glow-bg" style={{ bottom: "-150px", right: "-150px", opacity: 0.15, animationDelay: "5s" }} />
