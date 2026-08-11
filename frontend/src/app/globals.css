@@ -837,40 +837,41 @@ body {
   left: 0;
   right: 0;
   z-index: 50;
-  background: rgba(5, 8, 18, 0.96);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
-  padding: 0.35rem 0.5rem calc(0.35rem + env(safe-area-inset-bottom));
+  background: rgba(5, 8, 18, 0.99);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border-top: 2px solid rgba(99, 102, 241, 0.3);
+  padding: 0.6rem 0.5rem calc(0.6rem + env(safe-area-inset-bottom));
   gap: 0;
-  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.6);
 }
 .mobile-nav-item {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 7px 4px 5px;
+  gap: 4px;
+  padding: 10px 6px 8px;
   border: none;
   background: none;
   cursor: pointer;
-  color: rgba(148, 163, 184, 0.6);
-  font-size: 0.6rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  transition: color 0.2s, transform 0.15s;
-  border-radius: 10px;
+  color: rgba(148, 163, 184, 0.7);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  transition: color 0.2s, background 0.2s, transform 0.15s;
+  border-radius: 12px;
   position: relative;
 }
 .mobile-nav-item:active { transform: scale(0.93); }
 .mobile-nav-item.active {
-  color: #a5b4fc;
-  background: rgba(99, 102, 241, 0.1);
+  color: #ffffff;
+  background: rgba(99, 102, 241, 0.25);
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.2);
 }
-.mobile-nav-item.active[data-tab="quiz"] { color: #6ee7b7; background: rgba(16, 185, 129, 0.1); }
-.mobile-nav-item.active[data-tab="flashcards"] { color: #fcd34d; background: rgba(245, 158, 11, 0.1); }
-.mobile-nav-item.active[data-tab="debate"] { color: #f9a8d4; background: rgba(236, 72, 153, 0.1); }
+.mobile-nav-item.active[data-tab="quiz"] { color: #6ee7b7; background: rgba(16, 185, 129, 0.25); box-shadow: 0 0 16px rgba(16, 185, 129, 0.15); }
+.mobile-nav-item.active[data-tab="flashcards"] { color: #fcd34d; background: rgba(245, 158, 11, 0.25); box-shadow: 0 0 16px rgba(245, 158, 11, 0.15); }
+.mobile-nav-item.active[data-tab="debate"] { color: #f9a8d4; background: rgba(236, 72, 153, 0.25); box-shadow: 0 0 16px rgba(236, 72, 153, 0.15); }
 
 /* Sidebar container — slides in from left on mobile */
 .sidebar-container {
@@ -886,7 +887,10 @@ body {
 @media (max-width: 768px) {
   .mobile-nav { display: flex; }
   .desktop-tabs { display: none !important; }
-  .app-main { padding-bottom: 5rem !important; }
+  .app-main { padding-bottom: 6.5rem !important; }
+  header { gap: 1rem; padding: 0.85rem 0.75rem !important; }
+  header h1 { font-size: 1rem !important; }
+}
   
   /* Tighten header on mobile */
   header { min-height: 48px; }

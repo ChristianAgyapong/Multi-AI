@@ -114,30 +114,30 @@ export default function Home() {
         {/* Main column */}
         <div className="flex-1 min-w-0 z-10 flex flex-col overflow-hidden">
           {/* Header — sticky, never scrolls away */}
-          <header className="flex-shrink-0 bg-[rgba(3,7,18,0.85)] backdrop-blur-xl border-b border-white/5 px-3 py-2 md:px-6 md:py-2.5 flex items-center justify-between gap-2" style={{ position: 'sticky', top: 0, zIndex: 30 }}>
-            <div className="flex items-center gap-3">
+          <header className="flex-shrink-0 bg-gradient-to-b from-[rgba(3,7,18,0.95)] to-[rgba(3,7,18,0.85)] backdrop-blur-2xl border-b-2 border-white/8 px-3 py-3 md:px-6 md:py-3 flex items-center justify-between gap-3 md:gap-4 shadow-lg" style={{ position: 'sticky', top: 0, zIndex: 30 }}>
+            <div className="flex items-center gap-3 min-w-0 flex-shrink-0">
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="flex p-2 rounded-xl text-[var(--text-muted)] hover:text-white hover:bg-white/10 transition-all active:scale-95 z-50"
+                className="flex-shrink-0 p-2 rounded-xl text-[var(--text-muted)] hover:text-white hover:bg-white/10 transition-all active:scale-95 z-50"
                 title="Toggle sidebar"
               >
                 {isSidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
               </button>
 
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center">
-                  <GraduationCap size={18} className="text-indigo-400" />
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="p-2 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center flex-shrink-0 shadow-lg">
+                  <GraduationCap size={20} className="text-indigo-300" />
                 </div>
-                <h1 className="gradient-text text-sm md:text-base font-semibold leading-tight">
-                  Multimodal AI Tutor
+                <h1 className="gradient-text text-base md:text-lg font-bold leading-tight whitespace-nowrap">
+                  AI Tutor
                 </h1>
               </div>
             </div>
 
             {/* Desktop tab bar */}
             <nav
-              className="desktop-tabs flex gap-1 rounded-xl"
-              style={{ background: "rgba(15, 23, 42, 0.8)", border: "1px solid var(--border-color)" }}
+              className="desktop-tabs flex-shrink-0 flex gap-1 rounded-xl hidden md:flex"
+              style={{ background: "rgba(15, 23, 42, 0.9)", border: "1px solid var(--border-color)" }}
             >
               {tabs.map(({ id, label, Icon }) => (
                 <button
@@ -151,6 +151,12 @@ export default function Home() {
                 </button>
               ))}
             </nav>
+
+            {/* Mobile tab indicator */}
+            <div className="mobile-tab-indicator md:hidden flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "rgba(99, 102, 241, 0.15)", border: "1px solid rgba(99, 102, 241, 0.3)" }}>
+              {tabs.find(t => t.id === activeTab)?.Icon && React.createElement(tabs.find(t => t.id === activeTab)!.Icon, { size: 16, className: "text-indigo-300" })}
+              <span className="text-sm font-semibold text-indigo-200">{tabs.find(t => t.id === activeTab)?.label}</span>
+            </div>
           </header>
 
           {/* Tab panel */}
